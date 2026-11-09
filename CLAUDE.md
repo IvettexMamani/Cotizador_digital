@@ -31,7 +31,8 @@ Ningún dato técnico entra a la cotización sin fuente. Lo no verificado se mar
 - **Registrar tokens** (entrada/salida) en cada llamada al LLM → costo por cotización en el README.
 - **Clave:** en `.env` (local) y en *secrets* del despliegue. **Nunca** en código ni en el repo. `.env.example` solo con nombres de variables.
 - **Modo demo sin clave:** sin clave o si falla la API → usar JSON precalculado de las solicitudes de ejemplo y avisarlo en pantalla.
-- **Despliegue (decidido con Ivette el 2026-11-08):** Hugging Face Spaces, tipo Docker (HF ya no ofrece Streamlit como SDK directo). Archivos en `despliegue/huggingface/`; el `Dockerfile` clona el repo público de GitHub, instala, prueba el OCR durante la construcción y corre Streamlit en el puerto 7860. Actualizar = push a GitHub + *Factory rebuild* en el Space. GitHub Pages no sirve: solo publica sitios estáticos.
+- **Despliegue (decidido con Ivette el 2026-11-08):** **Streamlit Community Cloud**, gratis, desde el repo público de GitHub. Archivo principal: `app/streamlit_app.py`; Python 3.11; las librerías de sistema van en `packages.txt` (libgl1, libglib2.0-0, libgomp1). La clave va en los *Secrets* de la app. Cada push a `main` actualiza la app.
+  - Descartados: GitHub Pages (solo sitios estáticos) y Hugging Face Spaces. HF ahora exige PRO (US$ 9 al mes) para Spaces Docker o Gradio, incluso en cpu-basic: error 402 al crear el Space. El `Dockerfile` quedó en `despliegue/huggingface/` como plan B. Ivette inició sesión en el CLI `hf` (usuario IvettexMamani).
 
 ## Datos: solo públicos, sintéticos o de Ivette
 
