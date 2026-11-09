@@ -1,0 +1,25 @@
+# Secretos: la clave de la API nunca entra al repo
+.env
+.streamlit/secrets.toml
+
+# Entorno virtual
+.venv/
+venv/
+
+# Caché de descargas (scraping / datos abiertos)
+data/cache/
+
+# Salidas generadas por la app (PDF de cotizaciones)
+salidas/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

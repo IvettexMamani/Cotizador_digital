@@ -1,0 +1,26 @@
+# Python 3.11 · versiones fijadas el 2026-11-08
+
+# App
+streamlit==1.67.0
+
+# Lectura de documentos (sesión 10: OCR)
+pdfplumber==0.11.10
+paddleocr==3.4.1
+paddlepaddle==3.3.1
+
+# LLM con salida estructurada (sesión 08)
+anthropic==2.6.0
+pydantic==2.14.3
+python-dotenv==1.2.4
+
+# Datos, gráficos y PDF
+pandas==3.1.1
+openpyxl==3.1.5
+plotly==7.1.0
+fpdf2==2.9.0
+
+# Red: usa los certificados del sistema operativo (necesario si un antivirus inspecciona HTTPS)
+truststore==0.10.5
+
+# Pruebas
+pytest==9.2.0
