@@ -3,3 +3,6 @@
 *.png binary
 *.jpg binary
 *.jpeg binary
+
+# Scripts de Windows: siempre con saltos de linea CRLF
+*.bat text eol=crlf
