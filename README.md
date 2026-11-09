@@ -2,7 +2,7 @@
 
 > Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee la solicitud de cotización y la cruza con su catálogo de productos.
 
-**Estado:** en construcción (Bloque 1 de 5: base del repo). Este README se completa en el Bloque 5.
+**Estado:** en construcción. Funcionan los pasos 1 a 3 (subir, leer y extraer requisitos). Este README se completa en el Bloque 5.
 
 ## Regla de oro
 
@@ -34,6 +34,14 @@ pip install -r requirements.txt
 cp .env.example .env   # opcional: agrega tu ANTHROPIC_API_KEY; sin clave corre en modo demo
 streamlit run app/streamlit_app.py
 ```
+
+**Modo demo sin clave:** si no hay `ANTHROPIC_API_KEY` o la API falla, la app usa los resultados guardados en `data/precalculado/` para las solicitudes de ejemplo y lo avisa en pantalla. Así la demo no depende de internet. Para guardar el resultado de una solicitud nueva (requiere clave):
+
+```bash
+python -m ai.precalcular data/solicitudes/mi_solicitud.pdf
+```
+
+**Pruebas:** `pytest` (todas) o `pytest -m "not lento"` (sin las de OCR).
 
 ## Estructura
 

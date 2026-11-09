@@ -1,0 +1,61 @@
+{
+  "descripcion": "EJEMPLO SINTÉTICO: solicitud de cotización ficticia de útiles de oficina.",
+  "origen": "Transcrito a mano del documento generado por backend/ejemplo_sintetico.py (no salió de una llamada al LLM). Con clave de API se puede regenerar con: python -m ai.precalcular data/solicitudes/ejemplo_sintetico.pdf",
+  "archivos_sha256": {
+    "ejemplo_sintetico.pdf": "e4ced1afb33c76048cef778fbf0bebf22693a12898ac2642f18d546418dcc94e",
+    "ejemplo_sintetico_escaneado.pdf": "c02c1306f535693db3a9c68cfecae9fe172bb6815cacb87a27bab8331346cbaa",
+    "ejemplo_sintetico_foto.png": "dc2abd0861b4f4798afc3b5d8a78a2450a93deb16b1242f9cac130385324a1d2"
+  },
+  "solicitud": {
+    "entidad": "MUNICIPALIDAD DISTRITAL DE EJEMPLO (ENTIDAD FICTICIA)",
+    "numero_solicitud": "001-2026-UL/MDE",
+    "objeto": "ADQUISICIÓN DE ÚTILES DE OFICINA PARA LA SUBGERENCIA DE ADMINISTRACIÓN",
+    "items": [
+      {
+        "numero": 1,
+        "descripcion": "Papel bond A4",
+        "cantidad": 200,
+        "unidad": "Paquete",
+        "requisitos": [
+          {"atributo": "tamaño", "operador": "=", "valor": "A4", "unidad": null,
+           "texto_fuente": "Tamaño: A4 (210 x 297 mm).", "pagina": 1},
+          {"atributo": "gramaje", "operador": ">=", "valor": "75", "unidad": "g/m2",
+           "texto_fuente": "Gramaje: mínimo 75 g/m2.", "pagina": 1},
+          {"atributo": "hojas por paquete", "operador": "=", "valor": "500", "unidad": "hojas",
+           "texto_fuente": "Contenido: 500 hojas por paquete.", "pagina": 1},
+          {"atributo": "color", "operador": "=", "valor": "blanco", "unidad": null,
+           "texto_fuente": "Color: blanco.", "pagina": 1},
+          {"atributo": "presentación", "operador": "=", "valor": "paquete sellado de fábrica", "unidad": null,
+           "texto_fuente": "Presentación: paquete sellado de fábrica.", "pagina": 1}
+        ]
+      },
+      {
+        "numero": 2,
+        "descripcion": "Archivador de palanca lomo ancho tamaño oficio",
+        "cantidad": 150,
+        "unidad": "Unidad",
+        "requisitos": [
+          {"atributo": "tamaño", "operador": "=", "valor": "oficio", "unidad": null,
+           "texto_fuente": "Tamaño: oficio.", "pagina": 1},
+          {"atributo": "ancho de lomo", "operador": ">=", "valor": "8", "unidad": "cm",
+           "texto_fuente": "Ancho de lomo: mínimo 8 cm.", "pagina": 1},
+          {"atributo": "material", "operador": "=", "valor": "cartón prensado forrado", "unidad": null,
+           "texto_fuente": "Material: cartón prensado forrado.", "pagina": 1},
+          {"atributo": "mecanismo", "operador": "=", "valor": "palanca metálica con anillos", "unidad": null,
+           "texto_fuente": "Mecanismo: palanca metálica con anillos.", "pagina": 1}
+        ]
+      }
+    ],
+    "plazo_entrega": "10 días calendario, contados desde el día siguiente de notificada la orden de compra.",
+    "lugar_entrega": "Almacén Central de la entidad, Av. Los Ejemplos N° 123, Tacna.",
+    "fecha_limite": "16 de noviembre de 2026, hasta las 16:00 horas",
+    "anexos_solicitados": [
+      "Anexo N° 1: Carta de presentación de la cotización.",
+      "Anexo N° 2: Declaración jurada de cumplimiento de las especificaciones técnicas.",
+      "Anexo N° 3: Declaración jurada de no estar impedido para contratar con el Estado.",
+      "Copia de la ficha RUC.",
+      "Constancia de inscripción vigente en el RNP (capítulo de bienes)."
+    ],
+    "dudas": []
+  }
+}

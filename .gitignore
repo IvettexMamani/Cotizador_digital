@@ -9,6 +9,9 @@ venv/
 # Caché de descargas (scraping / datos abiertos)
 data/cache/
 
+# Registro local de tokens usados por el LLM
+logs/
+
 # Salidas generadas por la app (PDF de cotizaciones)
 salidas/
 

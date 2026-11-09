@@ -6,7 +6,9 @@ streamlit==1.67.0
 # Lectura de documentos (sesión 10: OCR)
 pdfplumber==0.11.10
 paddleocr==3.4.1
-paddlepaddle==3.3.1
+# 3.2.2 y no 3.3.x: la 3.3 falla en CPU con oneDNN ("ConvertPirAttribute2RuntimeAttribute
+# not support") y sin oneDNN el OCR tarda ~24 s por página en vez de ~6 s.
+paddlepaddle==3.2.2
 
 # LLM con salida estructurada (sesión 08)
 anthropic==2.6.0

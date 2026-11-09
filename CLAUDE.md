@@ -78,6 +78,10 @@ tests/      pruebas del cruce y del cálculo de precio
 
 Opcional: script de evaluación (sesión 12) del % de requisitos bien extraídos.
 
+**Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 en espera.
+
+**Decisiones ya tomadas:** LLM `claude-haiku-5-5` (configurable con `ANTHROPIC_MODEL`), esfuerzo `medium`, `client.messages.parse(output_format=SolicitudCotizacion)`. Modo demo: busca el resultado en `data/precalculado/*.json` por la huella SHA-256 del archivo; si se regenera un ejemplo, la prueba `test_precalculados_validan...` avisa. Tokens en `logs/uso_llm.jsonl` (ignorado por git).
+
 **Al cerrar cada bloque:** correr pruebas → commit pequeño en español → resumen corto → **esperar visto bueno** antes del siguiente. Si hay atraso, recortar alcance, pero **nunca** la confirmación ni el PDF.
 
 ## Cómo trabajar con Ivette
@@ -96,5 +100,6 @@ Opcional: script de evaluación (sesión 12) del % de requisitos bien extraídos
   - Instalar paquetes: `uv pip install --system-certs --python .venv <paquete>`.
   - `requests`/`httpx` (SDK de Anthropic, descarga de modelos de PaddleOCR, scraping) fallan con `CERTIFICATE_VERIFY_FAILED`. Solución verificada: `import truststore; truststore.inject_into_ssl()` al inicio de todo punto de entrada que use red (app, scripts, notebooks). Es inocuo en el despliegue.
 - Pruebas: `.venv\Scripts\python.exe -m pytest`.
+- PaddleOCR: modelos ya descargados en `~/.paddlex/official_models` (mobile det + latin rec). `paddlepaddle` fijado en 3.2.2: la 3.3.x falla con oneDNN en CPU. ~6 s por página.
 - git con remoto `origin` = repo de GitHub, rama `main`. `gh` no instalado.
 - `Cotizador_digital/` dentro de esta carpeta es un clon aparte del mismo repo; está excluido localmente en `.git/info/exclude`. No trabajar ahí.
