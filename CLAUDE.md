@@ -31,7 +31,7 @@ Ningún dato técnico entra a la cotización sin fuente. Lo no verificado se mar
 - **Registrar tokens** (entrada/salida) en cada llamada al LLM → costo por cotización en el README.
 - **Clave:** en `.env` (local) y en *secrets* del despliegue. **Nunca** en código ni en el repo. `.env.example` solo con nombres de variables.
 - **Modo demo sin clave:** sin clave o si falla la API → usar JSON precalculado de las solicitudes de ejemplo y avisarlo en pantalla.
-- **Despliegue:** Hugging Face Spaces (PaddleOCR necesita memoria) o Streamlit Community Cloud. Se decide con Ivette en el Bloque 5.
+- **Despliegue (decidido con Ivette el 2026-11-08):** Hugging Face Spaces, tipo Docker (HF ya no ofrece Streamlit como SDK directo). Archivos en `despliegue/huggingface/`; el `Dockerfile` clona el repo público de GitHub, instala, prueba el OCR durante la construcción y corre Streamlit en el puerto 7860. Actualizar = push a GitHub + *Factory rebuild* en el Space. GitHub Pages no sirve: solo publica sitios estáticos.
 
 ## Datos: solo públicos, sintéticos o de Ivette
 
