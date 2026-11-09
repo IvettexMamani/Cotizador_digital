@@ -43,10 +43,27 @@ def test_cruce_recomienda_productos_y_marca_el_dato_sin_fuente(app):
 
     # dataframes: 0-2 extracción; 3-4 ranking y matriz del ítem 1; 5-6 los del ítem 2
     assert app.dataframe[3].value["SKU"].iloc[0] == "EJ-PAP-075"
-    assert app.selectbox[1].value == "EJ-PAP-075"
-    assert app.selectbox[2].value == "EJ-ARC-080"
+    assert app.selectbox[1].value.startswith("EJ-PAP-075")
+    assert app.selectbox[2].value.startswith("EJ-ARC-080")
 
     matriz_archivador = app.dataframe[6].value
     material = matriz_archivador[matriz_archivador["Requisito"] == "material"].iloc[0]
     assert "revisar" in material["Estado"]
     assert material["Fuente del dato"] == "— sin fuente —"
+
+
+def test_pdf_bloqueado_hasta_ingresar_precio_y_confirmar(app):
+    procesar_ejemplo(app)
+    assert any("Ingresa tu margen" in i.value for i in app.info)
+    assert any("El PDF todavía no se puede generar" in e.value for e in app.error)
+
+    app.number_input(key="margen").set_value(20.0).run()
+    app.number_input(key="flete").set_value(50.0).run()
+    app.checkbox(key="responsable").check().run()
+    bloqueo = next(e.value for e in app.error if "El PDF todavía no se puede generar" in e.value)
+    assert "material" in bloqueo  # el dato en rojo sigue sin confirmar
+
+    app.checkbox(key="confirmo_2_EJ-ARC-080_material").check().run()
+    assert not app.exception
+    assert not any("El PDF todavía no se puede generar" in e.value for e in app.error)
+    assert any("Todo revisado" in s.value for s in app.success)

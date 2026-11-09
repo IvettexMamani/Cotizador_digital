@@ -79,7 +79,15 @@ tests/      pruebas del cruce y del cálculo de precio
 
 Opcional: script de evaluación (sesión 12) del % de requisitos bien extraídos.
 
-**Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 ✅ · Bloque 4 en espera.
+**Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 ✅ · Bloque 4 ✅ (falta cargar los precios reales del Estado) · Bloque 5 en espera.
+
+**Precio, confirmación y PDF (Bloque 4):**
+- `backend/precio.py`: piso = costo + flete por unidad; precio con margen = piso × (1 + margen); sugerido = mín(precio con margen, mediana del Estado), nunca bajo el piso. Con menos de 5 órdenes, referencia débil y se sugiere el precio con margen. Semáforo sobre el precio final: rojo si está bajo el piso o sobre el máximo; verde si está en la mediana o por debajo; amarillo entre la mediana y el máximo; gris sin referencia.
+- **Margen y flete NO tienen valor por defecto:** Ivette no los ha definido y no se inventan. IGV 18 % con casilla (activada por defecto). Se compara el precio final (con IGV) con los precios del Estado. **Supuesto por verificar:** los precios de Perú Compras incluyen IGV.
+- `backend/pdf.py`: `pendientes()` bloquea el PDF si hay datos en rojo o stock sin confirmar, precios faltantes o falta "Revisé y me hago responsable". El PDF declara los datos "Confirmado por el proveedor" y deja la firma en blanco. Las fuentes estándar solo admiten latin-1: `_t()` reemplaza ≥/≤/— por >=, <=, -.
+- `backend/precios.py`: carga `data/precios_estado.csv` (esquema limpio: fecha, entidad, descripcion, unidad, cantidad, precio_unitario, orden, fuente, fecha_consulta) y busca por palabras. **Falta** la función que limpia la exportación de Perú Compras: se escribe cuando Ivette entregue su descarga en `data/cache/`.
+- `ai/costos.py`: costo promedio por cotización desde `logs/uso_llm.jsonl` (`python -m ai.costos`).
+- En los selectores de Streamlit, las opciones son el texto que se muestra, sin `format_func`: AppTest falla con `format_func` cuando vuelve a enviar los widgets.
 
 **Catálogo y cruce (Bloque 3):** el CSV va en formato largo (una fila por producto y atributo, cada una con su `fuente`). Columnas en `backend/catalogo.py`. Si existe `data/catalogo.csv` (el catálogo real de Ivette) se usa ese; si no, `data/catalogo_ejemplo.csv`. Se acepta `;` o `,` como separador. El cruce (`backend/cruce.py`) solo da "cumple" con dato exacto, comparación correcta **y fuente**; si falta el dato, la fuente o la unidad, o el atributo se asoció por parecido, da "revisar". Orden de los productos: estado → stock suficiente → menor costo (proxy de mayor margen). Selección del usuario en `st.session_state["seleccion_productos"]` (ítem → sku).
 

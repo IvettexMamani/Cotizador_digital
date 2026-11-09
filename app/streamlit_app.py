@@ -1,6 +1,7 @@
 """Cotizador Digital: aplicación Streamlit (punto de entrada).
 
-Bloque 2: pasos 1 a 3 del flujo (subir, leer y extraer requisitos).
+Los 6 pasos del flujo: subir, leer, extraer requisitos, cruce con catálogo,
+precio, y confirmación con PDF.
 
 Ejecutar desde la raíz del repo:
     streamlit run app/streamlit_app.py
@@ -25,7 +26,13 @@ load_dotenv(RAIZ / ".env")  # antes de importar el extractor: define la clave y 
 from ai.extractor import MODELO, ErrorExtraccion, extraer_requisitos, hay_clave, huella  # noqa: E402
 from backend.catalogo import ErrorCatalogo, cargar_catalogo, ruta_catalogo  # noqa: E402
 from backend.cruce import CUMPLE, NO_CUMPLE, REVISAR, cruzar  # noqa: E402
+from backend.grafico_precio import grafico_precio  # noqa: E402
 from backend.lectura import EXTENSIONES_ADMITIDAS, leer_documento  # noqa: E402
+from backend.pdf import (Cotizacion, DatosProveedor, LineaCotizacion, generar_pdf,  # noqa: E402
+                         pendientes, por_confirmar)
+from backend.precio import (IGV, con_igv, piso_unitario, precio_con_margen, precio_sugerido,  # noqa: E402
+                            referencia_estado, repartir_flete, semaforo)
+from backend.precios import PRECIOS_ESTADO, buscar_precios, cargar_precios_estado, terminos_por_defecto  # noqa: E402
 
 DIAGRAMA = RAIZ / "docs" / "flujo_demo.png"
 CARPETA_SOLICITUDES = RAIZ / "data" / "solicitudes"
@@ -42,9 +49,11 @@ PASOS = [
     ("Leer documento", True),
     ("Extraer requisitos", True),
     ("Cruce con catálogo", True),
-    ("Fijar precio", False),
-    ("Confirmar y PDF", False),
+    ("Fijar precio", True),
+    ("Confirmar y PDF", True),
 ]
+SEMAFORO = {"verde": (st.success, "🟢 Verde"), "amarillo": (st.warning, "🟡 Amarillo"),
+            "rojo": (st.error, "🔴 Rojo"), "gris": (st.info, "⚪ Sin referencia")}
 
 SIMBOLOS = {">=": "≥", "<=": "≤", "=": "=", ">": ">", "<": "<", "incluye": "incluye"}
 METODOS = {"pdfplumber": "Texto digital (pdfplumber)", "ocr": "OCR (PaddleOCR)",
@@ -75,31 +84,40 @@ def leer_catalogo(ruta: str, modificado: float):
     return cargar_catalogo(Path(ruta))
 
 
+@st.cache_data(show_spinner=False)
+def leer_precios_estado(modificado: float):
+    return cargar_precios_estado()
+
+
 def formato_cantidad(valor: float) -> str:
     return f"{valor:,.0f}" if float(valor).is_integer() else f"{valor:,.2f}"
 
 
-def mostrar_cruce(solicitud) -> None:
-    """Paso 4: ranking de productos y matriz de cumplimiento por ítem."""
+def mostrar_cruce(solicitud) -> list:
+    """Paso 4: ranking de productos y matriz de cumplimiento por ítem.
+
+    Devuelve una lista de (resultado del ítem, producto elegido o None).
+    """
     st.header("4. Cruce con tu catálogo")
     ruta = ruta_catalogo()
     try:
         catalogo = leer_catalogo(str(ruta), ruta.stat().st_mtime)
     except (ErrorCatalogo, OSError) as error:
         st.error(f"No se pudo leer el catálogo `data/{ruta.name}`: {error}")
-        return
+        return []
 
     ejemplo = catalogo["es_ejemplo"].str.lower().isin(["si", "sí"]).any()
     st.caption(f"Catálogo: `data/{ruta.name}` · {catalogo['sku'].nunique()} productos"
                + (" · ⚠️ incluye productos de EJEMPLO (ficticios)" if ejemplo else ""))
 
-    seleccion = {}
+    seleccion = []
     for resultado in cruzar(solicitud, catalogo):
         item = resultado.item
         st.subheader(f"Ítem {item.numero}: {item.descripcion}")
         st.caption(f"Cantidad solicitada: {formato_cantidad(item.cantidad)} {item.unidad}")
         if not resultado.evaluaciones:
             st.error("No hay productos de esta categoría en tu catálogo.")
+            seleccion.append((resultado, None))
             continue
 
         st.dataframe(pd.DataFrame([
@@ -112,13 +130,13 @@ def mostrar_cruce(solicitud) -> None:
 
         if not resultado.aptas:
             st.error("Ningún producto de tu catálogo cumple los requisitos de este ítem.")
+            seleccion.append((resultado, None))
             continue
 
-        por_sku = {e.sku: e for e in resultado.aptas}
-        sku = st.selectbox("Producto a ofrecer (el primero es el recomendado)", list(por_sku),
-                           format_func=lambda s: f"{s} · {por_sku[s].producto} ({por_sku[s].estado})",
-                           key=f"producto_item_{item.numero}")
-        elegido = por_sku[sku]
+        por_etiqueta = {f"{e.sku} · {e.producto} ({e.estado})": e for e in resultado.aptas}
+        etiqueta = st.selectbox("Producto a ofrecer (el primero es el recomendado)", list(por_etiqueta),
+                                key=f"producto_item_{item.numero}")
+        elegido = por_etiqueta[etiqueta]
         if elegido.estado == CUMPLE:
             st.success(f"**{elegido.producto}** cumple todos los requisitos y cada dato tiene fuente.")
         else:
@@ -137,9 +155,141 @@ def mostrar_cruce(solicitud) -> None:
         st.markdown("**Matriz de cumplimiento**")
         st.dataframe(matriz.style.apply(lambda fila: [COLORES[estados[fila.name]]] * len(fila), axis=1),
                      hide_index=True, width="stretch")
-        seleccion[item.numero] = elegido.sku
+        seleccion.append((resultado, elegido))
 
-    st.session_state["seleccion_productos"] = seleccion  # la usará el paso 5 (precio)
+    return seleccion
+
+
+def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
+    """Paso 5: tarjeta de precio por ítem. Devuelve (precio unitario sin IGV por ítem, ¿agregar IGV?)."""
+    st.header("5. Precio")
+    st.caption("El margen y el flete son datos de tu negocio: los defines tú. "
+               "Los precios del Estado se comparan con tu precio final, el que pagaría la entidad.")
+    c1, c2, c3 = st.columns(3)
+    margen = c1.number_input("Margen (%)", min_value=0.0, max_value=500.0, value=None, step=1.0,
+                             placeholder="Tu margen habitual", key="margen")
+    flete = c2.number_input("Flete total de la entrega (S/)", min_value=0.0, value=None, step=10.0,
+                            placeholder="0 si no hay flete", key="flete",
+                            help="Se reparte entre los ítems en proporción a su valor (costo × cantidad).")
+    aplicar_igv = c3.checkbox(f"Agregar IGV ({IGV:.0%})", value=True, key="igv",
+                              help="Desmárcalo si tu empresa no está afecta al IGV.")
+
+    precios_df = leer_precios_estado(PRECIOS_ESTADO.stat().st_mtime if PRECIOS_ESTADO.exists() else 0.0)
+    if precios_df.empty:
+        st.info("Todavía no hay precios del Estado cargados (`data/precios_estado.csv`). "
+                "La tarjeta funciona igual, pero sin referencia.")
+
+    cotizables = [(r, e) for r, e in seleccion if e is not None]
+    if not cotizables:
+        st.warning("No hay ítems con un producto apto para cotizar.")
+        return {}, aplicar_igv
+    if margen is None or flete is None:
+        st.info("Ingresa tu margen y el flete para calcular los precios.")
+        return {}, aplicar_igv
+
+    precios = {}
+    fletes = repartir_flete(flete, [e.costo_unitario * r.item.cantidad for r, e in cotizables])
+    for (resultado, elegido), flete_item in zip(cotizables, fletes):
+        item = resultado.item
+        st.subheader(f"Ítem {item.numero}: {item.descripcion}")
+        # Todo en la base del precio final (con IGV si corresponde), igual que los precios del Estado
+        piso = con_igv(piso_unitario(elegido.costo_unitario, flete_item, item.cantidad), aplicar_igv)
+        propio = con_igv(precio_con_margen(piso_unitario(elegido.costo_unitario, flete_item, item.cantidad),
+                                           margen / 100), aplicar_igv)
+
+        terminos = st.text_input("Buscar bienes similares en los precios del Estado",
+                                 value=terminos_por_defecto(item.descripcion), key=f"terminos_{item.numero}")
+        ordenes = buscar_precios(precios_df, terminos)
+        referencia = referencia_estado(ordenes["precio_unitario"].tolist())
+        sugerido = precio_sugerido(propio, piso, referencia)
+
+        base = " (con IGV)" if aplicar_igv else ""
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(f"Costo + flete{base}", f"S/ {piso:,.2f}")
+        m2.metric(f"Con tu margen{base}", f"S/ {propio:,.2f}")
+        m3.metric("Mediana del Estado", f"S/ {referencia.mediana:,.2f}" if referencia else "—")
+        m4.metric("Precio sugerido", f"S/ {sugerido:,.2f}")
+
+        # La clave cambia con los parámetros: si cambian, el precio vuelve al sugerido
+        final = st.number_input(f"Precio unitario final{base} (S/)", min_value=0.0, value=round(sugerido, 2),
+                                step=0.10, format="%.2f",
+                                key=f"precio_{item.numero}_{elegido.sku}_{margen}_{flete}_{aplicar_igv}_{terminos}")
+        luz = semaforo(final, piso, referencia)
+        mostrar, etiqueta = SEMAFORO[luz.color]
+        mostrar(f"**{etiqueta}.** {luz.mensaje}")
+
+        if referencia is None:
+            st.caption(f"Sin órdenes del Estado que coincidan con «{terminos}».")
+        else:
+            if referencia.debil:
+                st.warning(f"Referencia débil: solo {referencia.n_ordenes} órdenes. Úsala con cautela.")
+            st.plotly_chart(grafico_precio(ordenes, referencia, final), key=f"grafico_{item.numero}")
+            with st.expander(f"Ver las {referencia.n_ordenes} órdenes de compra"):
+                st.dataframe(ordenes[["fecha", "entidad", "descripcion", "cantidad", "precio_unitario", "fuente"]],
+                             hide_index=True, width="stretch")
+        precios[item.numero] = final / (1 + IGV) if aplicar_igv else final
+    return precios, aplicar_igv
+
+
+def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion) -> None:
+    """Paso 6: resumen, confirmación de lo que está en rojo y PDF."""
+    st.header("6. Confirmación y PDF")
+    with st.expander("Datos de tu empresa para el PDF (opcional: no se guardan)"):
+        c1, c2 = st.columns(2)
+        proveedor = DatosProveedor(
+            razon_social=c1.text_input("Razón social", key="razon_social"),
+            ruc=c2.text_input("RUC", key="ruc"),
+            direccion=c1.text_input("Dirección", key="direccion"),
+            telefono=c2.text_input("Teléfono", key="telefono"),
+            correo=c1.text_input("Correo", key="correo"),
+            representante=c2.text_input("Representante legal", key="representante"),
+        )
+
+    lineas = [LineaCotizacion(r.item, e, precios.get(r.item.numero)) for r, e in seleccion]
+    confirmados = set()
+    for linea in lineas:
+        item = linea.item
+        st.markdown(f"**Ítem {item.numero}: {item.descripcion}**")
+        if linea.evaluacion is None:
+            st.error("No se cotiza: no hay un producto apto en tu catálogo.")
+            continue
+        e = linea.evaluacion
+        estados = [r.estado for r in e.resultados]
+        resumen = pd.DataFrame([
+            {"Requisito": r.atributo, "Dato ofrecido": r.ofrecido or "— sin dato —",
+             "Fuente": r.fuente or "— sin fuente —", "Estado": ESTADO_ICONO[r.estado]}
+            for r in e.resultados
+        ])
+        st.dataframe(resumen.style.apply(lambda fila: [COLORES[estados[fila.name]]] * len(fila), axis=1),
+                     hide_index=True, width="stretch")
+        for clave, descripcion in por_confirmar(linea):
+            if st.checkbox(f"🔴 Confirmo bajo mi responsabilidad: {descripcion}",
+                           key=f"confirmo_{item.numero}_{e.sku}_{clave}"):
+                confirmados.add((item.numero, clave))
+
+    responsable = st.checkbox("**Revisé y me hago responsable** de la información de esta cotización.",
+                              key="responsable")
+    cotizacion = Cotizacion(solicitud, lineas, proveedor, aplicar_igv, confirmados, responsable)
+
+    if extraccion.modo == "ia" and extraccion.uso and extraccion.uso.costo_usd is not None:
+        st.caption(f"Costo de IA de esta cotización: US$ {extraccion.uso.costo_usd:.4f} "
+                   f"({extraccion.uso.tokens_entrada + extraccion.uso.tokens_salida:,} tokens).")
+    else:
+        st.caption("Modo demo: esta cotización no tuvo costo de IA (resultado precalculado).")
+
+    faltan = pendientes(cotizacion)
+    if faltan:
+        st.error("**El PDF todavía no se puede generar.** Falta:\n" + "\n".join(f"- {f}" for f in faltan))
+        st.button("📄 Descargar cotización (PDF)", disabled=True, key="pdf_bloqueado")
+        return
+
+    total = cotizacion.subtotal + cotizacion.igv
+    st.success(f"Todo revisado. Total de la cotización: **S/ {total:,.2f}**"
+               + (f" (incluye IGV de S/ {cotizacion.igv:,.2f})" if aplicar_igv else " (sin IGV)") + ".")
+    nombre_pdf = "cotizacion_" + "".join(c if c.isalnum() else "_" for c in (solicitud.numero_solicitud or "solicitud"))
+    st.download_button("📄 Descargar cotización (PDF)", data=generar_pdf(cotizacion),
+                       file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="pdf")
+    st.caption("Revisa el PDF, fírmalo y preséntalo tú. La herramienta no firma ni envía nada.")
 
 
 def ejemplos_disponibles() -> list[Path]:
@@ -179,10 +329,10 @@ origen = st.radio("¿Qué solicitud quieres cotizar?", ["Usar una de ejemplo", "
 
 nombre, contenido = None, None
 if origen == "Usar una de ejemplo":
-    ejemplos = ejemplos_disponibles()
+    ejemplos = {p.name: p for p in ejemplos_disponibles()}
     if ejemplos:
-        elegido = st.selectbox("Solicitud de ejemplo", ejemplos, format_func=lambda p: p.name)
-        nombre, contenido = elegido.name, elegido.read_bytes()
+        nombre = st.selectbox("Solicitud de ejemplo", list(ejemplos))
+        contenido = ejemplos[nombre].read_bytes()
     else:
         st.info("No hay solicitudes en data/solicitudes/.")
 else:
@@ -297,8 +447,10 @@ if resultado is not None:
         else:
             st.caption("El extractor no marcó partes dudosas.")
 
-    mostrar_cruce(solicitud)
-    st.info("🕓 Próximo paso (Bloque 4): precio, confirmación y PDF.")
+    seleccion = mostrar_cruce(solicitud)
+    if seleccion:
+        precios, aplicar_igv = mostrar_precio(seleccion)
+        mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado)
 
 st.divider()
 st.caption(
