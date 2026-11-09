@@ -1,0 +1,23 @@
+sku,producto,marca_modelo,categoria,unidad_venta,costo_unitario_soles,stock,atributo,valor,unidad,fuente,es_ejemplo
+EJ-PAP-075,Papel bond A4 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,14.50,300,tamaño,A4,,Ficha de ejemplo sintética,si
+EJ-PAP-075,Papel bond A4 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,14.50,300,gramaje,75,g/m2,Ficha de ejemplo sintética,si
+EJ-PAP-075,Papel bond A4 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,14.50,300,hojas por paquete,500,hojas,Ficha de ejemplo sintética,si
+EJ-PAP-075,Papel bond A4 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,14.50,300,color,blanco,,Ficha de ejemplo sintética,si
+EJ-PAP-075,Papel bond A4 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,14.50,300,presentación,paquete sellado de fábrica,,Ficha de ejemplo sintética,si
+EJ-PAP-070,Papel bond A4 70 g (EJEMPLO),Producto ficticio,papel bond,Paquete,12.80,500,tamaño,A4,,Ficha de ejemplo sintética,si
+EJ-PAP-070,Papel bond A4 70 g (EJEMPLO),Producto ficticio,papel bond,Paquete,12.80,500,gramaje,70,g/m2,Ficha de ejemplo sintética,si
+EJ-PAP-070,Papel bond A4 70 g (EJEMPLO),Producto ficticio,papel bond,Paquete,12.80,500,hojas por paquete,500,hojas,Ficha de ejemplo sintética,si
+EJ-PAP-070,Papel bond A4 70 g (EJEMPLO),Producto ficticio,papel bond,Paquete,12.80,500,color,blanco,,Ficha de ejemplo sintética,si
+EJ-PAP-070,Papel bond A4 70 g (EJEMPLO),Producto ficticio,papel bond,Paquete,12.80,500,presentación,paquete sellado de fábrica,,Ficha de ejemplo sintética,si
+EJ-PAP-080,Papel bond A4 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,16.90,120,tamaño,A4,,Ficha de ejemplo sintética,si
+EJ-PAP-080,Papel bond A4 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,16.90,120,gramaje,80,g/m2,Ficha de ejemplo sintética,si
+EJ-PAP-080,Papel bond A4 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,16.90,120,hojas por paquete,500,hojas,Ficha de ejemplo sintética,si
+EJ-PAP-080,Papel bond A4 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,16.90,120,color,blanco,,Ficha de ejemplo sintética,si
+EJ-ARC-080,Archivador de palanca oficio lomo 8 cm (EJEMPLO),Producto ficticio,archivador,Unidad,6.20,200,tamaño,oficio,,Ficha de ejemplo sintética,si
+EJ-ARC-080,Archivador de palanca oficio lomo 8 cm (EJEMPLO),Producto ficticio,archivador,Unidad,6.20,200,ancho de lomo,80,mm,Ficha de ejemplo sintética,si
+EJ-ARC-080,Archivador de palanca oficio lomo 8 cm (EJEMPLO),Producto ficticio,archivador,Unidad,6.20,200,material,cartón prensado forrado,,,si
+EJ-ARC-080,Archivador de palanca oficio lomo 8 cm (EJEMPLO),Producto ficticio,archivador,Unidad,6.20,200,mecanismo,palanca metálica con anillos,,Ficha de ejemplo sintética,si
+EJ-ARC-050,Archivador de palanca oficio lomo 5 cm (EJEMPLO),Producto ficticio,archivador,Unidad,4.90,400,tamaño,oficio,,Ficha de ejemplo sintética,si
+EJ-ARC-050,Archivador de palanca oficio lomo 5 cm (EJEMPLO),Producto ficticio,archivador,Unidad,4.90,400,ancho de lomo,5,cm,Ficha de ejemplo sintética,si
+EJ-ARC-050,Archivador de palanca oficio lomo 5 cm (EJEMPLO),Producto ficticio,archivador,Unidad,4.90,400,material,cartón prensado forrado,,Ficha de ejemplo sintética,si
+EJ-ARC-050,Archivador de palanca oficio lomo 5 cm (EJEMPLO),Producto ficticio,archivador,Unidad,4.90,400,mecanismo,palanca metálica con anillos,,Ficha de ejemplo sintética,si

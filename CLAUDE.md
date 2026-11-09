@@ -79,7 +79,11 @@ tests/      pruebas del cruce y del cálculo de precio
 
 Opcional: script de evaluación (sesión 12) del % de requisitos bien extraídos.
 
-**Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 en espera.
+**Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 ✅ · Bloque 4 en espera.
+
+**Catálogo y cruce (Bloque 3):** el CSV va en formato largo (una fila por producto y atributo, cada una con su `fuente`). Columnas en `backend/catalogo.py`. Si existe `data/catalogo.csv` (el catálogo real de Ivette) se usa ese; si no, `data/catalogo_ejemplo.csv`. Se acepta `;` o `,` como separador. El cruce (`backend/cruce.py`) solo da "cumple" con dato exacto, comparación correcta **y fuente**; si falta el dato, la fuente o la unidad, o el atributo se asoció por parecido, da "revisar". Orden de los productos: estado → stock suficiente → menor costo (proxy de mayor margen). Selección del usuario en `st.session_state["seleccion_productos"]` (ítem → sku).
+
+**Precios del Estado (para el Bloque 4):** el registro de Open Contracting (publicación 78) no sirve: cubre 2021–2023 y no trae ítems ni precios unitarios. Fuente candidata: el buscador de órdenes de Catálogos Electrónicos de Perú Compras (`catalogos.perucompras.gob.pe/ConsultaOrdenesPub`). gob.pe bloquea el acceso automático (HTTP 418): no esquivarlo, pedir descarga manual.
 
 **Decisiones ya tomadas:** LLM `claude-haiku-5-5` (configurable con `ANTHROPIC_MODEL`), esfuerzo `medium`, `client.messages.parse(output_format=SolicitudCotizacion)`. Modo demo: busca el resultado en `data/precalculado/*.json` por la huella SHA-256 del archivo; si se regenera un ejemplo, la prueba `test_precalculados_validan...` avisa. Tokens en `logs/uso_llm.jsonl` (ignorado por git).
 

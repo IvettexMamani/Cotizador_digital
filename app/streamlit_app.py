@@ -23,6 +23,8 @@ from dotenv import load_dotenv  # noqa: E402
 load_dotenv(RAIZ / ".env")  # antes de importar el extractor: define la clave y el modelo
 
 from ai.extractor import MODELO, ErrorExtraccion, extraer_requisitos, hay_clave, huella  # noqa: E402
+from backend.catalogo import ErrorCatalogo, cargar_catalogo, ruta_catalogo  # noqa: E402
+from backend.cruce import CUMPLE, NO_CUMPLE, REVISAR, cruzar  # noqa: E402
 from backend.lectura import EXTENSIONES_ADMITIDAS, leer_documento  # noqa: E402
 
 DIAGRAMA = RAIZ / "docs" / "flujo_demo.png"
@@ -39,7 +41,7 @@ PASOS = [
     ("Subir solicitud", True),
     ("Leer documento", True),
     ("Extraer requisitos", True),
-    ("Cruce con catálogo", False),
+    ("Cruce con catálogo", True),
     ("Fijar precio", False),
     ("Confirmar y PDF", False),
 ]
@@ -47,6 +49,11 @@ PASOS = [
 SIMBOLOS = {">=": "≥", "<=": "≤", "=": "=", ">": ">", "<": "<", "incluye": "incluye"}
 METODOS = {"pdfplumber": "Texto digital (pdfplumber)", "ocr": "OCR (PaddleOCR)",
            "mixto": "Mixto (pdfplumber + OCR)"}
+ESTADO_ICONO = {CUMPLE: "✅ cumple", REVISAR: "⚠️ revisar", NO_CUMPLE: "❌ no cumple"}
+# Verde = cumple; rojo = revisar o no cumple (regla de oro). Texto oscuro para que se lea en tema claro y oscuro.
+COLORES = {CUMPLE: "background-color: #e6f4ea; color: #14532d",
+           REVISAR: "background-color: #fde8e8; color: #7f1d1d",
+           NO_CUMPLE: "background-color: #fde8e8; color: #7f1d1d"}
 
 
 # ---------------------------------------------------------------- funciones con caché
@@ -62,8 +69,77 @@ def extraer(texto: str, contenido: bytes, nombre: str):
     return extraer_requisitos(texto, contenido, nombre)
 
 
+@st.cache_data(show_spinner=False)
+def leer_catalogo(ruta: str, modificado: float):
+    # "modificado" es parte de la clave de la caché: si el CSV cambia, se vuelve a leer.
+    return cargar_catalogo(Path(ruta))
+
+
 def formato_cantidad(valor: float) -> str:
     return f"{valor:,.0f}" if float(valor).is_integer() else f"{valor:,.2f}"
+
+
+def mostrar_cruce(solicitud) -> None:
+    """Paso 4: ranking de productos y matriz de cumplimiento por ítem."""
+    st.header("4. Cruce con tu catálogo")
+    ruta = ruta_catalogo()
+    try:
+        catalogo = leer_catalogo(str(ruta), ruta.stat().st_mtime)
+    except (ErrorCatalogo, OSError) as error:
+        st.error(f"No se pudo leer el catálogo `data/{ruta.name}`: {error}")
+        return
+
+    ejemplo = catalogo["es_ejemplo"].str.lower().isin(["si", "sí"]).any()
+    st.caption(f"Catálogo: `data/{ruta.name}` · {catalogo['sku'].nunique()} productos"
+               + (" · ⚠️ incluye productos de EJEMPLO (ficticios)" if ejemplo else ""))
+
+    seleccion = {}
+    for resultado in cruzar(solicitud, catalogo):
+        item = resultado.item
+        st.subheader(f"Ítem {item.numero}: {item.descripcion}")
+        st.caption(f"Cantidad solicitada: {formato_cantidad(item.cantidad)} {item.unidad}")
+        if not resultado.evaluaciones:
+            st.error("No hay productos de esta categoría en tu catálogo.")
+            continue
+
+        st.dataframe(pd.DataFrame([
+            {"Producto": e.producto, "SKU": e.sku, "Estado": ESTADO_ICONO[e.estado],
+             "✅": e.contar(CUMPLE), "⚠️": e.contar(REVISAR), "❌": e.contar(NO_CUMPLE),
+             "Stock": f"{e.stock:,.0f} " + ("✓" if e.stock_suficiente else "✗ insuficiente"),
+             "Costo unit. (S/)": f"{e.costo_unitario:,.2f}"}
+            for e in resultado.evaluaciones
+        ]), hide_index=True, width="stretch")
+
+        if not resultado.aptas:
+            st.error("Ningún producto de tu catálogo cumple los requisitos de este ítem.")
+            continue
+
+        por_sku = {e.sku: e for e in resultado.aptas}
+        sku = st.selectbox("Producto a ofrecer (el primero es el recomendado)", list(por_sku),
+                           format_func=lambda s: f"{s} · {por_sku[s].producto} ({por_sku[s].estado})",
+                           key=f"producto_item_{item.numero}")
+        elegido = por_sku[sku]
+        if elegido.estado == CUMPLE:
+            st.success(f"**{elegido.producto}** cumple todos los requisitos y cada dato tiene fuente.")
+        else:
+            st.warning(f"**{elegido.producto}** tiene {elegido.contar(REVISAR)} dato(s) por revisar (en rojo). "
+                       "No entrarán a la cotización hasta que los confirmes.")
+        if not elegido.stock_suficiente:
+            st.warning(f"Stock insuficiente: tienes {elegido.stock:,.0f} y se piden {formato_cantidad(item.cantidad)}.")
+
+        estados = [r.estado for r in elegido.resultados]
+        matriz = pd.DataFrame([
+            {"Requisito": r.atributo, "Exigido": r.exigido, "Ofrecido": r.ofrecido or "— sin dato —",
+             "Estado": ESTADO_ICONO[r.estado], "Fuente del dato": r.fuente or "— sin fuente —",
+             "Observación": r.motivo}
+            for r in elegido.resultados
+        ])
+        st.markdown("**Matriz de cumplimiento**")
+        st.dataframe(matriz.style.apply(lambda fila: [COLORES[estados[fila.name]]] * len(fila), axis=1),
+                     hide_index=True, width="stretch")
+        seleccion[item.numero] = elegido.sku
+
+    st.session_state["seleccion_productos"] = seleccion  # la usará el paso 5 (precio)
 
 
 def ejemplos_disponibles() -> list[Path]:
@@ -221,7 +297,8 @@ if resultado is not None:
         else:
             st.caption("El extractor no marcó partes dudosas.")
 
-    st.info("🕓 Próximo paso (Bloque 3): cruzar estos requisitos con tu catálogo de productos.")
+    mostrar_cruce(solicitud)
+    st.info("🕓 Próximo paso (Bloque 4): precio, confirmación y PDF.")
 
 st.divider()
 st.caption(
