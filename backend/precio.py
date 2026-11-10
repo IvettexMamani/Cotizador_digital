@@ -17,6 +17,7 @@ precio con margen.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from statistics import median
 from typing import Sequence
@@ -66,11 +67,23 @@ def precio_con_margen(piso: float, margen: float) -> float:
     return piso * (1 + margen)
 
 
+def _centimos_arriba(monto: float) -> float:
+    return math.ceil(round(monto * 100, 6)) / 100
+
+
+def _centimos_abajo(monto: float) -> float:
+    return math.floor(round(monto * 100, 6)) / 100
+
+
 def precio_sugerido(propio: float, piso: float, referencia: ReferenciaEstado | None) -> float:
-    """Todos los montos en la misma base (con o sin IGV) que la referencia."""
+    """Todos los montos en la misma base (con o sin IGV) que la referencia.
+
+    Se devuelve en céntimos: el piso se redondea hacia arriba (para no quedar
+    debajo del costo) y la mediana hacia abajo (para no quedar sobre ella).
+    """
     if referencia is None or referencia.debil:
-        return propio
-    return max(piso, min(propio, referencia.mediana))
+        return max(_centimos_arriba(piso), round(propio, 2))
+    return max(_centimos_arriba(piso), _centimos_abajo(min(propio, referencia.mediana)))
 
 
 @dataclass

@@ -39,6 +39,18 @@ def test_precio_sugerido():
     assert precio_sugerido(propio=18, piso=11, referencia=referencia_estado([10, 12])) == 18  # débil
 
 
+def test_precio_sugerido_en_centimos_sin_cruzar_piso_ni_mediana():
+    ref = referencia_estado([9.55, 10.84, 12.6142, 13.45, 20.53])  # mediana 12.6142
+    # El piso (17.3348) está sobre la mediana: se redondea hacia ARRIBA, no queda en rojo
+    sugerido = precio_sugerido(propio=20.80, piso=17.3348, referencia=ref)
+    assert sugerido == 17.34
+    assert semaforo(sugerido, 17.3348, ref).color == "amarillo"
+    # La mediana se redondea hacia ABAJO: sigue siendo verde
+    sugerido = precio_sugerido(propio=20.80, piso=8.0, referencia=ref)
+    assert sugerido == 12.61
+    assert semaforo(sugerido, 8.0, ref).color == "verde"
+
+
 @pytest.mark.parametrize("precio, color", [(9, "rojo"), (14, "verde"), (25, "amarillo"), (31, "rojo")])
 def test_semaforo(precio, color):
     ref = referencia_estado([10, 12, 14, 20, 30])

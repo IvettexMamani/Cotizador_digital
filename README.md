@@ -53,7 +53,7 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 
 - **IA barata y con salida estructurada.** Un modelo económico como Claude Haiku 5.5 cuesta US$ 0,10 por millón de tokens de entrada y US$ 0,50 por millón de salida (tabla de precios de Anthropic, octubre de 2026), y devuelve JSON validado contra un esquema. El costo por cotización se mide con llamadas reales (parte 7).
 - **OCR abierto que corre sin tarjeta gráfica.** PaddleOCR lee una página escaneada en unos 6 segundos en una laptop común (medido en este proyecto).
-- **Datos abiertos de compras públicas.** Perú Compras publica las órdenes de compra de sus Catálogos Electrónicos, con exportación detallada, y el OECE gestiona los contratos menores en una herramienta digital ([gob.pe: Gestionar Contratos Menores](https://www.gob.pe/70088-gestionar-contratos-menores)).
+- **Datos abiertos de compras públicas.** Perú Compras publica las órdenes de compra de sus Catálogos Electrónicos como datos abiertos, con el PDF de cada orden, y el OECE gestiona los contratos menores en una herramienta digital ([gob.pe: Gestionar Contratos Menores](https://www.gob.pe/70088-gestionar-contratos-menores)).
 
 ## 6. Demo
 
@@ -67,7 +67,11 @@ La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado
 |---|---|---|
 | ![Requisitos extraídos](docs/capturas/01_requisitos.png) | ![Matriz de cumplimiento](docs/capturas/02_matriz.png) | ![Confirmación y PDF](docs/capturas/03_confirmacion_pdf.png) |
 
-*Capturas con la solicitud de EJEMPLO SINTÉTICO, el catálogo de ejemplo y un margen y un flete ilustrativos.*
+**Tarjeta de precio con órdenes reales del Estado:** el papel bond A4 se compara con 5 órdenes de compra de Perú Compras (mayo a octubre de 2026).
+
+![Tarjeta de precio con los precios del Estado](docs/capturas/04_precio_estado.png)
+
+*Capturas con la solicitud de EJEMPLO SINTÉTICO, el catálogo de ejemplo y un margen y un flete ilustrativos. Los precios del Estado son reales.*
 
 ### Arquitectura
 
@@ -83,7 +87,8 @@ flowchart LR
     EXT --> CRU["Cruce<br/>backend/cruce.py"]
     CAT[("Catálogo CSV<br/>data/catalogo.csv")] --> CRU
     CRU --> PRE["Precio<br/>backend/precio.py"]
-    EST[("Precios del Estado<br/>Perú Compras")] --> PRE
+    EST[("Precios del Estado<br/>data/precios_estado.csv")] --> PRE
+    OC["Órdenes de Perú Compras (PDF)<br/>backend/ordenes_pdf.py + OCR"] -.->|"se prepara antes"| EST
     PRE --> CON["Confirmación"]
     CON -->|"Revisé y me hago responsable"| PDF["PDF<br/>backend/pdf.py"]
     PDF -->|"lo firma y presenta el proveedor"| U
@@ -96,7 +101,7 @@ flowchart LR
 | Extracción de requisitos | **Claude Haiku 5.5** (`claude-haiku-5-5`), API de Anthropic, con `messages.parse()` y un esquema Pydantic | Es el modelo vigente más económico (el costo por cotización es parte del modelo de negocio) y la salida estructurada devuelve JSON que siempre cumple el esquema. Se puede cambiar con la variable `ANTHROPIC_MODEL`. |
 | OCR | **PaddleOCR**, modelos `PP-OCRv5_mobile_det` y `latin_PP-OCRv5_mobile_rec` | Es abierto, corre en CPU, lee tildes y ñ, y los modelos *mobile* caben en la memoria de un servidor gratuito. Se carga solo cuando hace falta. |
 | PDF digital | **pdfplumber** | Si la página trae texto, no hace falta OCR: es instantáneo y exacto. |
-| Datos de precios | **Perú Compras**: buscador de órdenes de Catálogos Electrónicos, exportación detallada | Es la fuente oficial de lo que pagó el Estado por bienes similares. |
+| Datos de precios | **Perú Compras**: exportación de datos abiertos del buscador de órdenes + el PDF de una muestra de órdenes, leído con PaddleOCR | Es la fuente oficial de lo que pagó el Estado. La exportación trae solo el total de cada orden; el precio por producto está en el PDF. |
 
 ## 7. Modelo de negocio
 
@@ -123,15 +128,15 @@ Costo de IA al mes por usuario = costo por cotización × cotizaciones al mes.
 
 | Herramienta | Sesión | Dónde está |
 |---|---|---|
-| Scraping responsable | 03 | **No hizo falta scraping** (regla 1: primero la vía oficial). Antes de consultar Perú Compras se revisó su `robots.txt` (no existe) y se usó su exportación oficial, descargada a mano. Fuentes y reglas en [Datos y fuentes](#datos-y-fuentes). |
+| Scraping responsable | 03 | [`backend/descargar_ordenes.py`](backend/descargar_ordenes.py). Como último recurso: la exportación oficial (descargada a mano) no trae el precio por producto, así que se bajaron 50 PDF de órdenes con las 10 reglas. Detalle en [Datos y fuentes](#datos-y-fuentes). |
 | LLM con salida estructurada | 08 | [`ai/extractor.py`](ai/extractor.py), [`ai/esquemas.py`](ai/esquemas.py), [`ai/prompts.py`](ai/prompts.py) |
-| OCR | 10 | [`ai/ocr.py`](ai/ocr.py), [`backend/lectura.py`](backend/lectura.py) |
-| pandas | | [`backend/catalogo.py`](backend/catalogo.py), [`backend/cruce.py`](backend/cruce.py), [`backend/precios.py`](backend/precios.py) |
+| OCR | 10 | [`ai/ocr.py`](ai/ocr.py), [`backend/lectura.py`](backend/lectura.py) y [`backend/ordenes_pdf.py`](backend/ordenes_pdf.py) (órdenes de compra escaneadas) |
+| pandas | | [`backend/catalogo.py`](backend/catalogo.py), [`backend/cruce.py`](backend/cruce.py), [`backend/precios.py`](backend/precios.py), [`backend/ordenes_pdf.py`](backend/ordenes_pdf.py) |
 | Visualización (plotly) | | [`backend/grafico_precio.py`](backend/grafico_precio.py) |
 | App web (Streamlit) | | [`app/streamlit_app.py`](app/streamlit_app.py) |
 | Validación (Pydantic) | | [`ai/esquemas.py`](ai/esquemas.py) |
 | PDF (fpdf2) | | [`backend/pdf.py`](backend/pdf.py) |
-| Pruebas (pytest) | | [`tests/`](tests/): 57 pruebas |
+| Pruebas (pytest) | | [`tests/`](tests/): 70 pruebas |
 | Evaluación | 12 | Opcional, pendiente: medir qué porcentaje de requisitos se extrae bien en solicitudes revisadas a mano. |
 
 ## 9. Qué hizo el agente
@@ -140,7 +145,7 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 57 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
+- **Generó** todo el código, las 70 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida) y el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
 - **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue y qué entra o no en la demo.
@@ -154,14 +159,35 @@ En resumen:
 | Solicitud de cotización | `data/solicitudes/ejemplo_sintetico.*`: **EJEMPLO SINTÉTICO** de una entidad ficticia, en PDF digital, PDF escaneado y foto | ✅ |
 | Solicitudes reales | 3 a 5 solicitudes públicas descargadas de portales de entidades, nunca documentos internos | ✍️ pendiente |
 | Catálogo | `data/catalogo_ejemplo.csv`: productos ficticios marcados EJEMPLO. El catálogo real va en `data/catalogo.csv`, con la fuente de cada dato | ✍️ pendiente el real |
-| Precios del Estado | Buscador de órdenes de compra de Catálogos Electrónicos de Perú Compras ([catalogos.perucompras.gob.pe/ConsultaOrdenesPub](https://catalogos.perucompras.gob.pe/ConsultaOrdenesPub)), exportación detallada descargada a mano | ✍️ pendiente la descarga |
+| Precios del Estado | `data/precios_estado.csv`: 95 precios unitarios de 18 órdenes de compra de Perú Compras, Acuerdo Marco EXT-CE-2021-7 *Útiles de escritorio, papeles y cartones*, publicadas del 11/05/2026 al 28/10/2026. Cada fila lleva la URL de su orden y la fecha de consulta (09/11/2026) | ✅ |
 
-**Reglas que se aplicaron:**
+**Cómo se obtuvieron los precios del Estado:**
 
-- Primero la vía oficial. No se hizo scraping.
-- `robots.txt` revisado: no existe.
-- Consultas identificadas con el nombre del proyecto y la URL del repo, con pausas de al menos 3 segundos.
-- Las descargas en bruto van a `data/cache/`, que no se sube a GitHub. A `data/` solo pasa la versión limpia: sin nombres, DNI, correos ni teléfonos de personas, y con la URL de origen y la fecha de consulta.
+1. **Vía oficial primero.** Ivette exportó a mano, desde el buscador de órdenes ([catalogos.perucompras.gob.pe/ConsultaOrdenesPub](https://catalogos.perucompras.gob.pe/ConsultaOrdenesPub)), las órdenes del 01/05/2026 al 31/10/2026: 10 371 órdenes. Esa exportación trae solo el total de cada orden. Según su [diccionario de datos](https://saeusceprod01.blob.core.windows.net/contproveedor/Documentos/Publico/Diccionario_de_Datos_Abiertos.pdf), no tiene descripción, cantidad ni precio por producto. Sí trae el enlace al PDF de cada orden.
+2. **Último recurso: bajar una muestra de esos PDF** ([`backend/descargar_ordenes.py`](backend/descargar_ordenes.py)), con autorización de Ivette y con estas reglas:
+   - `robots.txt` revisado con `urllib.robotparser`: no existe en ninguno de los dos servidores. La página de datos abiertos declara que la información se puede usar y reutilizar libremente.
+   - Solo enlaces públicos que vienen en la exportación oficial; sin login, sin CAPTCHA.
+   - Una descarga a la vez, con al menos 3 segundos de pausa y como máximo 2 reintentos, con espera creciente.
+   - User-Agent `CotizadorDigital/0.1 (+https://github.com/IvettexMamani/Cotizador_digital)`, sin correos.
+   - Muestra fija de **50 órdenes** (semilla 2026), solo de órdenes aceptadas o pagadas.
+   - Caché en `data/cache/ordenes/`, que no se sube a GitHub.
+3. **Lectura** ([`backend/ordenes_pdf.py`](backend/ordenes_pdf.py)): los PDF son escaneados y se leen con PaddleOCR. Una línea se acepta solo si **cantidad × precio unitario = total**. Una orden se usa solo si se puede comprobar el IGV con sus montos.
+   - **Resultado:** 18 de las 50 órdenes se usaron.
+   - **24 tenían otro formato** o el OCR no cuadró.
+   - **8 se descartaron por el IGV:** 3 estaban exoneradas (Amazonía) y 5 se leyeron solo en parte.
+4. **Datos limpios:** a `data/` solo pasan la fecha, la entidad (pública), la descripción, la unidad, la cantidad, el precio unitario, el número de orden, la URL de origen y la fecha de consulta. **No pasan** proveedores, usuarios, firmas ni nombres de funcionarios.
+
+**IGV:** en las 18 órdenes usadas, la suma de las líneas coincide con el total *con* IGV. El precio unitario de las órdenes **incluye IGV**, y así se compara en la app.
+
+**Límites:** es una muestra pequeña, de un solo acuerdo marco. El OCR puede equivocarse en una letra de la descripción (por ejemplo, "B0 g" en lugar de "80 g"), pero los números están comprobados. Cada orden enlaza a su PDF para revisarla.
+
+**Para actualizar los precios** (con una exportación nueva en `data/cache/`):
+
+```bash
+python -m backend.descargar_ordenes "data/cache/<exportación>.csv" --n 50
+python -m backend.ordenes_pdf
+```
+
 - La "Descarga Masiva" de datos abiertos de Perú Compras se descartó: solo llega hasta noviembre de 2023 y no trae el precio por producto.
 
 ## Cómo replicarlo en otra computadora
@@ -205,11 +231,11 @@ python -m ai.costos            # costo promedio de IA por cotización
 
 ```
 app/        aplicación Streamlit (los 6 pasos)
-backend/    lectura, catálogo, cruce, precio, precios del Estado, gráfico y PDF
+backend/    lectura, catálogo, cruce, precio, precios del Estado (descarga y lectura de órdenes), gráfico y PDF
 ai/         esquemas Pydantic, prompts, extractor LLM, OCR y costos
-data/       solicitud y catálogo de ejemplo, resultados precalculados (sin datos personales)
+data/       solicitud y catálogo de ejemplo, resultados precalculados, precios del Estado (sin datos personales)
 docs/       diagrama, capturas, research/, agente.md, guion del video y del pitch
-tests/      pruebas de lectura, extracción, cruce, precio, PDF y app
+tests/      pruebas de lectura, extracción, cruce, precio, órdenes del Estado, PDF y app
 despliegue/ plan B: Dockerfile para Hugging Face Spaces
 ```
 

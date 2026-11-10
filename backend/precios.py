@@ -1,12 +1,14 @@
 """Precios que pagó el Estado por bienes similares (datos abiertos).
 
-Fuente prevista: exportación detallada del buscador de órdenes de compra de
-Catálogos Electrónicos de Perú Compras
-(https://catalogos.perucompras.gob.pe/ConsultaOrdenesPub), descargada a mano
-en data/cache/ (no se sube a GitHub).
+Fuente: órdenes de compra de Catálogos Electrónicos de Perú Compras
+(https://catalogos.perucompras.gob.pe/ConsultaOrdenesPub). La exportación de
+datos abiertos trae solo el total de cada orden; el precio por producto sale
+del PDF de la orden. Se arma así:
+    1. backend/descargar_ordenes.py baja una muestra pequeña de PDF a data/cache/.
+    2. backend/ordenes_pdf.py los lee (OCR) y escribe data/precios_estado.csv.
 
-El archivo limpio data/precios_estado.csv tiene solo los campos útiles, sin
-datos personales, con la URL de origen y la fecha de consulta.
+El archivo limpio tiene solo los campos útiles, sin datos personales, con la
+URL de origen y la fecha de consulta. precio_unitario está siempre con IGV.
 """
 
 from __future__ import annotations

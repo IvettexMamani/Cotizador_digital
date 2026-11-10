@@ -224,7 +224,10 @@ def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
                 st.warning(f"Referencia débil: solo {referencia.n_ordenes} órdenes. Úsala con cautela.")
             st.plotly_chart(grafico_precio(ordenes, referencia, final), key=f"grafico_{item.numero}")
             with st.expander(f"Ver las {referencia.n_ordenes} órdenes de compra"):
-                st.dataframe(ordenes[["fecha", "entidad", "descripcion", "cantidad", "precio_unitario", "fuente"]],
+                st.caption("Precios unitarios con IGV. Revisa que la unidad sea la misma que cotizas "
+                           "(por ejemplo, resma de 500 hojas y no millar).")
+                st.dataframe(ordenes[["fecha", "entidad", "descripcion", "unidad", "cantidad", "precio_unitario",
+                                      "fuente"]],
                              hide_index=True, width="stretch")
         precios[item.numero] = final / (1 + IGV) if aplicar_igv else final
     return precios, aplicar_igv
