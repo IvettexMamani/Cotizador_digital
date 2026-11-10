@@ -79,7 +79,11 @@ tests/      pruebas del cruce y del cálculo de precio
 
 Opcional: script de evaluación (sesión 12) del % de requisitos bien extraídos.
 
-**Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 ✅ · Bloque 4 ✅ (falta cargar los precios reales del Estado) · Bloque 5 en espera.
+**Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 ✅ · Bloque 4 ✅ (falta cargar los precios reales del Estado) · Bloque 5 ✅ en lo que depende del agente.
+
+**Pendientes de Ivette (marcados con ✍️ en el README):** URL de Streamlit Cloud; clave de API, para medir el costo por cotización con `python -m ai.costos`; exportación de precios de Perú Compras en `data/cache/`, para escribir la limpieza en `backend/precios.py`; solicitudes reales en `data/solicitudes/` y catálogo real en `data/catalogo.csv`; las 3 conversaciones en `docs/research/`; historia de founder; contenido de los planes Básico y Pro. No completar nada de esto sin sus datos.
+
+**Capturas del README:** `docs/capturas/0{1,2,3}_*.png`, tomadas con playwright y Edge sin ventana (`channel="msedge"`, sin descargar navegadores). playwright está en `.venv` pero no en `requirements.txt` (es solo una herramienta de desarrollo). La extensión de Chrome no conecta o no toma capturas en esta máquina.
 
 **Precio, confirmación y PDF (Bloque 4):**
 - `backend/precio.py`: piso = costo + flete por unidad; precio con margen = piso × (1 + margen); sugerido = mín(precio con margen, mediana del Estado), nunca bajo el piso. Con menos de 5 órdenes, referencia débil y se sugiere el precio con margen. Semáforo sobre el precio final: rojo si está bajo el piso o sobre el máximo; verde si está en la mediana o por debajo; amarillo entre la mediana y el máximo; gris sin referencia.

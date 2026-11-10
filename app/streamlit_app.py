@@ -56,8 +56,7 @@ SEMAFORO = {"verde": (st.success, "🟢 Verde"), "amarillo": (st.warning, "🟡 
             "rojo": (st.error, "🔴 Rojo"), "gris": (st.info, "⚪ Sin referencia")}
 
 SIMBOLOS = {">=": "≥", "<=": "≤", "=": "=", ">": ">", "<": "<", "incluye": "incluye"}
-METODOS = {"pdfplumber": "Texto digital (pdfplumber)", "ocr": "OCR (PaddleOCR)",
-           "mixto": "Mixto (pdfplumber + OCR)"}
+METODOS = {"pdfplumber": "pdfplumber", "ocr": "OCR · PaddleOCR", "mixto": "pdfplumber + OCR"}
 ESTADO_ICONO = {CUMPLE: "✅ cumple", REVISAR: "⚠️ revisar", NO_CUMPLE: "❌ no cumple"}
 # Verde = cumple; rojo = revisar o no cumple (regla de oro). Texto oscuro para que se lea en tema claro y oscuro.
 COLORES = {CUMPLE: "background-color: #e6f4ea; color: #14532d",
