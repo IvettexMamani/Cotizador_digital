@@ -57,7 +57,7 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 
 ## 6. Demo
 
-**URL pública:** ✍️ *pendiente: la URL de Streamlit Community Cloud.*
+**URL pública:** **https://cotizadordigital.streamlit.app** (Streamlit Community Cloud). Probada de principio a fin el 09/11/2026: PDF digital, foto con OCR, precios del Estado y descarga del PDF. Si nadie la usa por un tiempo se duerme; al abrirla tarda un poco en despertar.
 
 La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado de la solicitud de ejemplo y lo avisa en pantalla. Así la presentación no depende de internet.
 

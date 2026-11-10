@@ -51,7 +51,7 @@ Usa la app publicada. Si falla, pon el video de respaldo (parte A).
 
 ## Lista de chequeo para el día de la presentación
 
-- [ ] Abrir la URL publicada **10 minutos antes**: la app gratuita se duerme si nadie la usa y tarda en despertar.
+- [ ] Abrir **https://cotizadordigital.streamlit.app** **10 minutos antes**: la app gratuita se duerme si nadie la usa y tarda en despertar.
 - [ ] Procesar una vez la solicitud de ejemplo, para que el OCR ya esté cargado.
 - [ ] Tener el **video de respaldo** abierto en otra pestaña.
 - [ ] Tener un **PDF ya descargado** por si todo falla.

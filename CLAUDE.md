@@ -81,7 +81,9 @@ Opcional: script de evaluación (sesión 12) del % de requisitos bien extraídos
 
 **Avance:** Bloque 1 ✅ · Bloque 2 ✅ (pendiente: probar el LLM con clave real) · Bloque 3 ✅ · Bloque 4 ✅ (con precios reales del Estado desde el 2026-11-09) · Bloque 5 ✅ en lo que depende del agente.
 
-**Pendientes de Ivette (marcados con ✍️ en el README):** URL de Streamlit Cloud; clave de API, para medir el costo por cotización con `python -m ai.costos`; solicitudes reales en `data/solicitudes/` y catálogo real en `data/catalogo.csv`; las 3 conversaciones en `docs/research/`; historia de founder; contenido de los planes Básico y Pro. No completar nada de esto sin sus datos.
+**URL pública:** https://cotizadordigital.streamlit.app (la creó Ivette; probada el 2026-11-09: PDF, foto con OCR en ~17 s, precios del Estado y descarga del PDF). Es un iframe: con playwright, buscar los elementos en `page.frames` (`/~/+/`).
+
+**Pendientes de Ivette (marcados con ✍️ en el README):** clave de API, para medir el costo por cotización con `python -m ai.costos`; solicitudes reales en `data/solicitudes/` y catálogo real en `data/catalogo.csv`; las 3 conversaciones en `docs/research/`; historia de founder; contenido de los planes Básico y Pro. No completar nada de esto sin sus datos.
 
 **Capturas del README:** `docs/capturas/0{1,2,3,4}_*.png` (la 04 es la tarjeta de precio con órdenes reales), tomadas con playwright y Edge sin ventana (`channel="msedge"`, sin descargar navegadores). playwright está en `.venv` pero no en `requirements.txt` (es solo una herramienta de desarrollo). La extensión de Chrome no conecta o no toma capturas en esta máquina.
 
