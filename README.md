@@ -141,7 +141,7 @@ Costo de IA al mes por usuario = costo por cotización × cotizaciones al mes.
 | App web (Streamlit) | | [`app/streamlit_app.py`](app/streamlit_app.py) |
 | Validación (Pydantic) | | [`ai/esquemas.py`](ai/esquemas.py) |
 | PDF (fpdf2) | | [`backend/pdf.py`](backend/pdf.py) |
-| Pruebas (pytest) | | [`tests/`](tests/): 79 pruebas |
+| Pruebas (pytest) | | [`tests/`](tests/): 80 pruebas |
 | Evaluación | 12 | Opcional, pendiente: medir qué porcentaje de requisitos se extrae bien en solicitudes revisadas a mano. |
 
 ## 9. Qué hizo el agente
@@ -150,7 +150,7 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 79 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
+- **Generó** todo el código, las 80 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida) y el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
 - **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue y qué entra o no en la demo.

@@ -45,15 +45,8 @@ ONE_LINER = (
     "con su catálogo de productos."
 )
 
-# (nombre del paso, ¿ya funciona?)
-PASOS = [
-    ("Subir solicitud", True),
-    ("Leer documento", True),
-    ("Extraer requisitos", True),
-    ("Cruce con catálogo", True),
-    ("Fijar precio", True),
-    ("Confirmar y PDF", True),
-]
+PASOS = ["Elegir solicitud", "Leer documento", "Extraer requisitos", "Cruce con catálogo",
+         "Fijar precio", "Confirmar y PDF"]
 SEMAFORO = {"verde": (st.success, "🟢 Verde"), "amarillo": (st.warning, "🟡 Amarillo"),
             "rojo": (st.error, "🔴 Rojo"), "gris": (st.info, "⚪ Sin referencia")}
 
@@ -301,8 +294,8 @@ def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
     return precios, aplicar_igv
 
 
-def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion) -> None:
-    """Paso 6: resumen, confirmación de lo que está en rojo y PDF."""
+def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion) -> bool:
+    """Paso 6: resumen, confirmación de lo que está en rojo y PDF. Devuelve True si el PDF está listo."""
     st.header("6. Confirmación y PDF")
     with st.expander("Datos de tu empresa para el PDF (opcional: no se guardan)"):
         c1, c2 = st.columns(2)
@@ -351,7 +344,7 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion)
     if faltan:
         st.error("**El PDF todavía no se puede generar.** Falta:\n" + "\n".join(f"- {f}" for f in faltan))
         st.button("📄 Descargar cotización (PDF)", disabled=True, key="pdf_bloqueado")
-        return
+        return False
 
     total = cotizacion.subtotal + cotizacion.igv
     st.success(f"Todo revisado. Total de la cotización: **S/ {total:,.2f}**"
@@ -360,6 +353,22 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion)
     st.download_button("📄 Descargar cotización (PDF)", data=generar_pdf(cotizacion),
                        file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="pdf")
     st.caption("Revisa el PDF, fírmalo y preséntalo tú. La herramienta no firma ni envía nada.")
+    return True
+
+
+def mostrar_avance(contenedor, hechos: list[bool]) -> None:
+    """Barra lateral: ✅ pasos hechos, 👉 el que sigue, ⚪ los pendientes."""
+    siguiente = next((i for i, hecho in enumerate(hechos) if not hecho), None)
+    with contenedor:
+        for i, (nombre, hecho) in enumerate(zip(PASOS, hechos)):
+            if hecho:
+                st.markdown(f"✅ {i + 1}. {nombre}")
+            elif i == siguiente:
+                st.markdown(f"👉 **{i + 1}. {nombre}**")
+            else:
+                st.markdown(f"⚪ {i + 1}. {nombre}")
+        if siguiente is None:
+            st.caption("Cotización lista para descargar.")
 
 
 def ejemplos_disponibles() -> list[Path]:
@@ -376,9 +385,8 @@ with st.sidebar:
         st.success(f"🤖 IA activa · modelo `{MODELO}`")
     else:
         st.warning("🧪 **Modo demo sin clave.** Se usan resultados precalculados de las solicitudes de ejemplo.")
-    st.markdown("**Flujo**")
-    for numero, (nombre, listo) in enumerate(PASOS, start=1):
-        st.markdown(f"{'✅' if listo else '🕓'} {numero}. {nombre}")
+    st.markdown("**Tu avance**")
+    avance = st.container()  # se llena al final, cuando ya se sabe qué pasos están hechos
     if DIAGRAMA.exists():
         with st.expander("Ver diagrama del flujo"):
             st.image(str(DIAGRAMA), width="stretch")
@@ -451,6 +459,7 @@ if lectura is not None:
 # ---------------------------------------------------------------- 3. requisitos
 
 resultado = st.session_state.get("extraccion")
+seleccion, precios, pdf_listo = [], {}, False
 if resultado is not None:
     solicitud = resultado.solicitud
     st.header("3. Requisitos extraídos")
@@ -525,7 +534,16 @@ if resultado is not None:
     seleccion = mostrar_cruce(solicitud)
     if seleccion:
         precios, aplicar_igv = mostrar_precio(seleccion)
-        mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado)
+        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado)
+
+mostrar_avance(avance, [
+    contenido is not None,
+    lectura is not None,
+    resultado is not None,
+    any(elegido is not None for _, elegido in seleccion),
+    bool(precios),
+    pdf_listo,
+])
 
 st.divider()
 st.caption(

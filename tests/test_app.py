@@ -89,3 +89,24 @@ def test_bien_fuera_del_catalogo_con_la_foto_de_ejemplo(app):
     app.number_input(key="foto_costo_2").set_value(4.0).run()
     app.number_input(key="foto_stock_2").set_value(300.0).run()
     assert any(o.startswith("FOTO-2") for o in app.selectbox(key="producto_item_2").options)
+
+
+def avance(app) -> list[str]:
+    return [m.value for m in app.sidebar.markdown if m.value[:1] in "✅👉⚪"]
+
+
+def test_la_barra_lateral_muestra_el_avance_real(app):
+    # Al abrir: la solicitud de ejemplo ya está elegida y lo que sigue es leerla
+    assert avance(app)[0].startswith("✅") and avance(app)[1].startswith("👉")
+    assert all(paso.startswith("⚪") for paso in avance(app)[2:])
+
+    procesar_ejemplo(app)  # lee, extrae y recomienda productos
+    assert [p[0] for p in avance(app)] == ["✅", "✅", "✅", "✅", "👉", "⚪"]
+
+    app.number_input(key="margen").set_value(20.0).run()
+    app.number_input(key="flete").set_value(50.0).run()
+    assert [p[0] for p in avance(app)] == ["✅", "✅", "✅", "✅", "✅", "👉"]
+
+    app.checkbox(key="responsable").check().run()
+    app.checkbox(key="confirmo_2_EJ-ARC-080_material").check().run()
+    assert [p[0] for p in avance(app)] == ["✅"] * 6
