@@ -418,21 +418,26 @@ if resultado is not None:
     )
 
     st.subheader("Requisitos técnicos")
-    filas = [
-        {
-            "Ítem": item.numero,
-            "Atributo": req.atributo,
-            "Exigencia": f"{SIMBOLOS[req.operador]} {req.valor}" + (f" {req.unidad}" if req.unidad else ""),
-            "Fuente (cita del documento)": req.texto_fuente,
-            "Pág.": req.pagina,
-        }
-        for item in solicitud.items
-        for req in item.requisitos
-    ]
-    if filas:
-        st.dataframe(pd.DataFrame(filas), hide_index=True, width="stretch")
-    else:
+    if not any(item.requisitos for item in solicitud.items):
         st.info("El documento no trae especificaciones técnicas por ítem.")
+    for item in solicitud.items:  # una tabla por ítem
+        st.markdown(f"**Ítem {item.numero}: {item.descripcion}** · "
+                    f"{formato_cantidad(item.cantidad)} {item.unidad}")
+        if not item.requisitos:
+            st.caption("Este ítem no trae especificaciones técnicas.")
+            continue
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "Atributo": req.atributo,
+                    "Exigencia": f"{SIMBOLOS[req.operador]} {req.valor}" + (f" {req.unidad}" if req.unidad else ""),
+                    "Fuente (cita del documento)": req.texto_fuente,
+                    "Pág.": req.pagina,
+                }
+                for req in item.requisitos
+            ]),
+            hide_index=True, width="stretch",
+        )
 
     col_anexos, col_dudas = st.columns(2)
     with col_anexos:

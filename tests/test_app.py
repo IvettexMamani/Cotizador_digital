@@ -32,21 +32,24 @@ def procesar_ejemplo(app):
 def test_flujo_con_la_solicitud_de_ejemplo_muestra_los_requisitos(app):
     procesar_ejemplo(app)
 
-    requisitos = app.dataframe[2].value  # 0: datos generales, 1: ítems, 2: requisitos
-    assert len(requisitos) == 9
-    assert "Gramaje: mínimo 75 g/m2." in requisitos["Fuente (cita del documento)"].tolist()
+    # 0: datos generales, 1: ítems, 2 y 3: una tabla de requisitos por ítem
+    papel, archivador = app.dataframe[2].value, app.dataframe[3].value
+    assert len(papel) + len(archivador) == 9
+    assert "Ítem" not in papel.columns  # cada tabla ya es de un solo ítem
+    assert "Gramaje: mínimo 75 g/m2." in papel["Fuente (cita del documento)"].tolist()
+    assert "material" in archivador["Atributo"].tolist()
     assert any("Modo demo" in aviso.value for aviso in app.warning)
 
 
 def test_cruce_recomienda_productos_y_marca_el_dato_sin_fuente(app):
     procesar_ejemplo(app)
 
-    # dataframes: 0-2 extracción; 3-4 ranking y matriz del ítem 1; 5-6 los del ítem 2
-    assert app.dataframe[3].value["SKU"].iloc[0] == "EJ-PAP-075"
+    # dataframes: 0-3 extracción; 4-5 ranking y matriz del ítem 1; 6-7 los del ítem 2
+    assert app.dataframe[4].value["SKU"].iloc[0] == "EJ-PAP-075"
     assert app.selectbox[1].value.startswith("EJ-PAP-075")
     assert app.selectbox[2].value.startswith("EJ-ARC-080")
 
-    matriz_archivador = app.dataframe[6].value
+    matriz_archivador = app.dataframe[7].value
     material = matriz_archivador[matriz_archivador["Requisito"] == "material"].iloc[0]
     assert "revisar" in material["Estado"]
     assert material["Fuente del dato"] == "— sin fuente —"
