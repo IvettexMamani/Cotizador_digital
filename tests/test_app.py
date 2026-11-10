@@ -70,3 +70,22 @@ def test_pdf_bloqueado_hasta_ingresar_precio_y_confirmar(app):
     assert not app.exception
     assert not any("El PDF todavía no se puede generar" in e.value for e in app.error)
     assert any("Todo revisado" in s.value for s in app.success)
+
+
+@pytest.mark.lento
+def test_bien_fuera_del_catalogo_con_la_foto_de_ejemplo(app):
+    procesar_ejemplo(app)
+    app.checkbox(key="foto_ejemplo_2").check().run(timeout=240)  # OCR real de la etiqueta
+    assert not app.exception
+
+    verificacion = next(d.value for d in app.dataframe if "Leído en la foto" in d.value.columns)
+    estados = dict(zip(verificacion["Requisito"], verificacion["Estado"]))
+    assert "cumple" in estados["ancho de lomo"] and "revisar" in estados["material"]
+
+    # Sin costo ni stock todavía no se puede ofrecer
+    assert any("Ingresa tu costo y tu stock" in i.value for i in app.info)
+    assert not any(o.startswith("FOTO-2") for o in app.selectbox(key="producto_item_2").options)
+
+    app.number_input(key="foto_costo_2").set_value(4.0).run()
+    app.number_input(key="foto_stock_2").set_value(300.0).run()
+    assert any(o.startswith("FOTO-2") for o in app.selectbox(key="producto_item_2").options)

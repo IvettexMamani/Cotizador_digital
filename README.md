@@ -41,7 +41,7 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 | 1. Subir | PDF digital, PDF escaneado o foto | Streamlit |
 | 2. Leer | Extrae el texto, página por página | pdfplumber; PaddleOCR si la página es imagen |
 | 3. Extraer | Entidad, objeto, ítems, requisitos técnicos (atributo, operador, valor, unidad), plazo, lugar, fecha límite y anexos, **con la cita y la página de cada requisito** | LLM con salida estructurada + Pydantic |
-| 4. Cruzar | Cada requisito contra el catálogo del proveedor: ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo | pandas |
+| 4. Cruzar | Cada requisito contra el catálogo del proveedor: ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo. **Si el bien no está en el catálogo**, el proveedor sube la foto de su etiqueta: el OCR lee lo impreso y se verifica igual, y lo que no se lee queda en rojo | pandas, PaddleOCR |
 | 5. Precio | Costo + flete + margen, comparado con lo que pagó el Estado: mínimo, mediana, máximo y número de órdenes, precio sugerido y semáforo | plotly |
 | 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se genera el PDF: carta, cuadro de precios y matriz de cumplimiento | fpdf2 |
 
@@ -71,6 +71,10 @@ La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado
 
 ![Tarjeta de precio con los precios del Estado](docs/capturas/04_precio_estado.png)
 
+**Un bien que no está en el catálogo, verificado con la foto de su etiqueta:** el OCR lee el tamaño, el lomo (80 mm = 8 cm) y el mecanismo; el material no está impreso y queda en rojo.
+
+![Verificación con la foto de la etiqueta](docs/capturas/05_foto_producto.png)
+
 *Capturas con la solicitud de EJEMPLO SINTÉTICO, el catálogo de ejemplo y un margen y un flete ilustrativos. Los precios del Estado son reales.*
 
 ### Arquitectura
@@ -86,6 +90,7 @@ flowchart LR
     EXT -.->|"sin clave o si falla"| JSON[("JSON precalculado<br/>data/precalculado/")]
     EXT --> CRU["Cruce<br/>backend/cruce.py"]
     CAT[("Catálogo CSV<br/>data/catalogo.csv")] --> CRU
+    FOTO["Foto de la etiqueta<br/>backend/foto_producto.py + OCR"] -.->|"bien fuera del catálogo"| CRU
     CRU --> PRE["Precio<br/>backend/precio.py"]
     EST[("Precios del Estado<br/>data/precios_estado.csv")] --> PRE
     OC["Órdenes de Perú Compras (PDF)<br/>backend/ordenes_pdf.py + OCR"] -.->|"se prepara antes"| EST
@@ -130,13 +135,13 @@ Costo de IA al mes por usuario = costo por cotización × cotizaciones al mes.
 |---|---|---|
 | Scraping responsable | 03 | [`backend/descargar_ordenes.py`](backend/descargar_ordenes.py). Como último recurso: la exportación oficial (descargada a mano) no trae el precio por producto, así que se bajaron 50 PDF de órdenes con las 10 reglas. Detalle en [Datos y fuentes](#datos-y-fuentes). |
 | LLM con salida estructurada | 08 | [`ai/extractor.py`](ai/extractor.py), [`ai/esquemas.py`](ai/esquemas.py), [`ai/prompts.py`](ai/prompts.py) |
-| OCR | 10 | [`ai/ocr.py`](ai/ocr.py), [`backend/lectura.py`](backend/lectura.py) y [`backend/ordenes_pdf.py`](backend/ordenes_pdf.py) (órdenes de compra escaneadas) |
+| OCR | 10 | [`ai/ocr.py`](ai/ocr.py), [`backend/lectura.py`](backend/lectura.py) y [`backend/ordenes_pdf.py`](backend/ordenes_pdf.py) (órdenes de compra escaneadas) y [`backend/foto_producto.py`](backend/foto_producto.py) (etiqueta de un bien fuera del catálogo) |
 | pandas | | [`backend/catalogo.py`](backend/catalogo.py), [`backend/cruce.py`](backend/cruce.py), [`backend/precios.py`](backend/precios.py), [`backend/ordenes_pdf.py`](backend/ordenes_pdf.py) |
 | Visualización (plotly) | | [`backend/grafico_precio.py`](backend/grafico_precio.py) |
 | App web (Streamlit) | | [`app/streamlit_app.py`](app/streamlit_app.py) |
 | Validación (Pydantic) | | [`ai/esquemas.py`](ai/esquemas.py) |
 | PDF (fpdf2) | | [`backend/pdf.py`](backend/pdf.py) |
-| Pruebas (pytest) | | [`tests/`](tests/): 70 pruebas |
+| Pruebas (pytest) | | [`tests/`](tests/): 79 pruebas |
 | Evaluación | 12 | Opcional, pendiente: medir qué porcentaje de requisitos se extrae bien en solicitudes revisadas a mano. |
 
 ## 9. Qué hizo el agente
@@ -145,7 +150,7 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 70 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
+- **Generó** todo el código, las 79 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida) y el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
 - **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue y qué entra o no en la demo.
@@ -159,6 +164,7 @@ En resumen:
 | Solicitud de cotización | `data/solicitudes/ejemplo_sintetico.*`: **EJEMPLO SINTÉTICO** de una entidad ficticia, en PDF digital, PDF escaneado y foto | ✅ |
 | Solicitudes reales | 3 a 5 solicitudes públicas descargadas de portales de entidades, nunca documentos internos | ✍️ pendiente |
 | Catálogo | `data/catalogo_ejemplo.csv`: productos ficticios marcados EJEMPLO. El catálogo real va en `data/catalogo.csv`, con la fuente de cada dato | ✍️ pendiente el real |
+| Foto de producto | `data/fotos_productos/ejemplo_etiqueta_archivador.png`: etiqueta **EJEMPLO SINTÉTICO** de un archivador ficticio (marca inventada). A propósito no indica el material | ✅ |
 | Precios del Estado | `data/precios_estado.csv`: 95 precios unitarios de 18 órdenes de compra de Perú Compras, Acuerdo Marco EXT-CE-2021-7 *Útiles de escritorio, papeles y cartones*, publicadas del 11/05/2026 al 28/10/2026. Cada fila lleva la URL de su orden y la fecha de consulta (09/11/2026) | ✅ |
 
 **Cómo se obtuvieron los precios del Estado:**
@@ -231,11 +237,11 @@ python -m ai.costos            # costo promedio de IA por cotización
 
 ```
 app/        aplicación Streamlit (los 6 pasos)
-backend/    lectura, catálogo, cruce, precio, precios del Estado (descarga y lectura de órdenes), gráfico y PDF
+backend/    lectura, catálogo, cruce, foto de producto, precio, precios del Estado (descarga y lectura de órdenes), gráfico y PDF
 ai/         esquemas Pydantic, prompts, extractor LLM, OCR y costos
-data/       solicitud y catálogo de ejemplo, resultados precalculados, precios del Estado (sin datos personales)
+data/       solicitud, catálogo y foto de producto de ejemplo, resultados precalculados, precios del Estado (sin datos personales)
 docs/       diagrama, capturas, research/, agente.md, guion del video y del pitch
-tests/      pruebas de lectura, extracción, cruce, precio, órdenes del Estado, PDF y app
+tests/      pruebas de lectura, extracción, cruce, foto de producto, precio, órdenes del Estado, PDF y app
 despliegue/ plan B: Dockerfile para Hugging Face Spaces
 ```
 

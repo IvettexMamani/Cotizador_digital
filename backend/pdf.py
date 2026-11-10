@@ -246,14 +246,14 @@ def generar_pdf(cotizacion: Cotizacion) -> bytes:
                     fuente, verificacion = r.fuente, "Cumple"
                 else:
                     hubo_confirmados = True
-                    fuente = r.fuente or "Sin fuente en el catálogo"
+                    fuente = r.fuente or "Sin fuente verificada"
                     verificacion = "Confirmado por el proveedor"
                 tabla.row([_t(x) for x in (r.atributo, r.exigido, r.ofrecido or "-", fuente, verificacion)])
     if hubo_confirmados:
         pdf.ln(3)
         pdf.set_font("Helvetica", "I", 8)
         pdf.multi_cell(0, 4.5, _t(
-            "Los datos marcados «Confirmado por el proveedor» no tenían una fuente verificada en el catálogo "
+            "Los datos marcados «Confirmado por el proveedor» no tenían una fuente verificada (ficha técnica o etiqueta legible) "
             "y fueron confirmados por el proveedor bajo su responsabilidad."), align="L",
             new_x="LMARGIN", new_y="NEXT")
 

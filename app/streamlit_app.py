@@ -25,7 +25,9 @@ load_dotenv(RAIZ / ".env")  # antes de importar el extractor: define la clave y 
 
 from ai.extractor import MODELO, ErrorExtraccion, extraer_requisitos, hay_clave, huella  # noqa: E402
 from backend.catalogo import ErrorCatalogo, cargar_catalogo, ruta_catalogo  # noqa: E402
-from backend.cruce import CUMPLE, NO_CUMPLE, REVISAR, cruzar  # noqa: E402
+from backend.cruce import CUMPLE, NO_CUMPLE, ORDEN_ESTADO, REVISAR, cruzar  # noqa: E402
+from backend.ejemplo_sintetico import FOTO_PRODUCTO as FOTO_EJEMPLO  # noqa: E402
+from backend.foto_producto import evaluar_foto, tiene_texto  # noqa: E402
 from backend.grafico_precio import grafico_precio  # noqa: E402
 from backend.lectura import EXTENSIONES_ADMITIDAS, leer_documento  # noqa: E402
 from backend.pdf import (Cotizacion, DatosProveedor, LineaCotizacion, generar_pdf,  # noqa: E402
@@ -92,6 +94,70 @@ def formato_cantidad(valor: float) -> str:
     return f"{valor:,.0f}" if float(valor).is_integer() else f"{valor:,.2f}"
 
 
+def mostrar_foto_producto(item):
+    """Paso 4 (opción): un bien que no está en el catálogo, a partir de la foto de su etiqueta.
+
+    Devuelve su evaluación cuando el proveedor ya indicó costo y stock; si no, None.
+    """
+    # Si ya hay una foto en uso, la sección queda abierta (si no, se cerraría en cada recarga)
+    en_uso = (st.session_state.get(f"foto_{item.numero}") is not None
+              or bool(st.session_state.get(f"foto_ejemplo_{item.numero}")))
+    with st.expander("📷 ¿Ofreces un bien que no está en tu catálogo? Sube la foto de su etiqueta",
+                     expanded=en_uso):
+        st.caption("Se lee con OCR lo que está **impreso** en la etiqueta, el empaque o la ficha técnica, y se "
+                   "compara con los requisitos del ítem. Solo cuenta lo que se puede leer: lo demás queda en "
+                   "rojo (regla de oro).")
+        archivo = st.file_uploader("Foto (PNG o JPG)", type=["png", "jpg", "jpeg"], key=f"foto_{item.numero}")
+        usar_ejemplo = FOTO_EJEMPLO.exists() and archivo is None and st.checkbox(
+            "Usar la foto de ejemplo (etiqueta ficticia de un archivador)", key=f"foto_ejemplo_{item.numero}")
+        if archivo is not None:
+            nombre, contenido = archivo.name, archivo.getvalue()
+        elif usar_ejemplo:
+            nombre, contenido = FOTO_EJEMPLO.name, FOTO_EJEMPLO.read_bytes()
+        else:
+            return None
+
+        with st.spinner("Leyendo la foto (la primera vez el OCR carga el modelo y tarda más)..."):
+            lectura = leer(nombre, contenido)
+        texto = lectura.texto.replace("=== Página 1 ===", "").strip()
+        if not tiene_texto(texto):
+            st.error("No se lee texto en la foto. Una foto del producto sin texto no prueba sus "
+                     "especificaciones: sube la foto de la etiqueta, del empaque o de la ficha técnica.")
+            return None
+        st.text_area("Texto leído en la foto", texto, height=140, disabled=True, key=f"texto_foto_{item.numero}")
+
+        c1, c2 = st.columns(2)
+        producto = c1.text_input("Nombre del producto", placeholder="Ej.: Archivador de palanca lomo ancho",
+                                 key=f"foto_producto_{item.numero}")
+        marca = c2.text_input("Marca y modelo (como figura en la etiqueta)", key=f"foto_marca_{item.numero}")
+        costo = c1.number_input("Tu costo unitario (S/)", min_value=0.0, value=None, step=0.10, format="%.2f",
+                                key=f"foto_costo_{item.numero}")
+        stock = c2.number_input("Stock disponible", min_value=0.0, value=None, step=1.0, format="%.0f",
+                                key=f"foto_stock_{item.numero}")
+
+        marca = marca.strip() or ("etiqueta de EJEMPLO, producto ficticio" if usar_ejemplo else "")
+        evaluacion = evaluar_foto(item, texto, nombre, producto.strip(), marca,
+                                  costo or 0.0, stock or 0.0, es_ejemplo=usar_ejemplo)
+        estados = [r.estado for r in evaluacion.resultados]
+        st.markdown(f"**Verificación con lo leído en la foto:** {ESTADO_ICONO[evaluacion.estado]}")
+        st.dataframe(pd.DataFrame([
+            {"Requisito": r.atributo, "Exigido": r.exigido, "Leído en la foto": r.ofrecido or "— no se lee —",
+             "Estado": ESTADO_ICONO[r.estado], "Fuente del dato": r.fuente or "— sin fuente —",
+             "Observación": r.motivo}
+            for r in evaluacion.resultados
+        ]).style.apply(lambda fila: [COLORES[estados[fila.name]]] * len(fila), axis=1),
+            hide_index=True, width="stretch")
+
+        if evaluacion.estado == NO_CUMPLE:
+            st.error("Según lo leído en la foto, este bien **no cumple** algún requisito: no se puede ofrecer.")
+            return None
+        if costo is None or stock is None:
+            st.info("Ingresa tu costo y tu stock para poder ofrecer este bien en la cotización.")
+            return None
+        st.success("Listo: puedes elegirlo abajo, en «Producto a ofrecer».")
+        return evaluacion
+
+
 def mostrar_cruce(solicitud) -> list:
     """Paso 4: ranking de productos y matriz de cumplimiento por ítem.
 
@@ -114,25 +180,27 @@ def mostrar_cruce(solicitud) -> list:
         item = resultado.item
         st.subheader(f"Ítem {item.numero}: {item.descripcion}")
         st.caption(f"Cantidad solicitada: {formato_cantidad(item.cantidad)} {item.unidad}")
-        if not resultado.evaluaciones:
+        if resultado.evaluaciones:
+            st.dataframe(pd.DataFrame([
+                {"Producto": e.producto, "SKU": e.sku, "Estado": ESTADO_ICONO[e.estado],
+                 "✅": e.contar(CUMPLE), "⚠️": e.contar(REVISAR), "❌": e.contar(NO_CUMPLE),
+                 "Stock": f"{e.stock:,.0f} " + ("✓" if e.stock_suficiente else "✗ insuficiente"),
+                 "Costo unit. (S/)": f"{e.costo_unitario:,.2f}"}
+                for e in resultado.evaluaciones
+            ]), hide_index=True, width="stretch")
+            if not resultado.aptas:
+                st.error("Ningún producto de tu catálogo cumple los requisitos de este ítem.")
+        else:
             st.error("No hay productos de esta categoría en tu catálogo.")
+
+        de_la_foto = mostrar_foto_producto(item)
+        aptas = resultado.aptas + ([de_la_foto] if de_la_foto and de_la_foto.estado != NO_CUMPLE else [])
+        aptas.sort(key=lambda e: (ORDEN_ESTADO[e.estado], not e.stock_suficiente, e.costo_unitario))
+        if not aptas:
             seleccion.append((resultado, None))
             continue
 
-        st.dataframe(pd.DataFrame([
-            {"Producto": e.producto, "SKU": e.sku, "Estado": ESTADO_ICONO[e.estado],
-             "✅": e.contar(CUMPLE), "⚠️": e.contar(REVISAR), "❌": e.contar(NO_CUMPLE),
-             "Stock": f"{e.stock:,.0f} " + ("✓" if e.stock_suficiente else "✗ insuficiente"),
-             "Costo unit. (S/)": f"{e.costo_unitario:,.2f}"}
-            for e in resultado.evaluaciones
-        ]), hide_index=True, width="stretch")
-
-        if not resultado.aptas:
-            st.error("Ningún producto de tu catálogo cumple los requisitos de este ítem.")
-            seleccion.append((resultado, None))
-            continue
-
-        por_etiqueta = {f"{e.sku} · {e.producto} ({e.estado})": e for e in resultado.aptas}
+        por_etiqueta = {f"{e.sku} · {e.producto} ({e.estado})": e for e in aptas}
         etiqueta = st.selectbox("Producto a ofrecer (el primero es el recomendado)", list(por_etiqueta),
                                 key=f"producto_item_{item.numero}")
         elegido = por_etiqueta[etiqueta]

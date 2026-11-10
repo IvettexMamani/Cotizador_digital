@@ -170,6 +170,42 @@ def generar_pdf_escaneado(foto: Path = FOTO, destino: Path = PDF_ESCANEADO) -> P
     return destino
 
 
+FOTO_PRODUCTO = CARPETA.parent / "fotos_productos" / "ejemplo_etiqueta_archivador.png"
+
+# Etiqueta ficticia de un archivador que no está en el catálogo. A propósito NO
+# dice el material: así la demo muestra que lo que no se lee queda en rojo.
+ETIQUETA = [
+    ("B", 9, "EJEMPLO SINTÉTICO - ETIQUETA FICTICIA"),
+    ("B", 14, "ARCHIVADOR DE PALANCA"),
+    ("", 11, "Marca: MARCA EJEMPLO   Modelo: EJ-200"),
+    ("", 11, "Tamaño: oficio"),
+    ("", 11, "Lomo ancho: 80 mm"),
+    ("", 11, "Mecanismo: palanca metálica con anillos"),
+    ("", 11, "Contenido: 1 unidad"),
+]
+
+
+def generar_foto_producto(destino: Path = FOTO_PRODUCTO) -> Path:
+    """Etiqueta de producto como imagen, ligeramente girada, como una foto con el celular."""
+    pdf = FPDF(unit="mm", format=(110, 72))
+    pdf.set_creation_date(FECHA_FIJA)
+    pdf.set_margins(8, 8, 8)
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+    pdf.rect(4, 4, 102, 64)
+    for estilo, tamano, texto in ETIQUETA:
+        pdf.set_font("Helvetica", estilo, tamano)
+        pdf.cell(0, tamano * 0.55, texto, new_x="LMARGIN", new_y="NEXT")
+    temporal = destino.with_suffix(".pdf")
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    pdf.output(str(temporal))
+    with pdfplumber.open(temporal) as documento:
+        imagen = documento.pages[0].to_image(resolution=200).original.convert("L")
+    temporal.unlink()
+    imagen.rotate(1.5, expand=True, fillcolor=205).save(destino)  # fondo gris: la mesa
+    return destino
+
+
 if __name__ == "__main__":
-    for ruta in (generar_pdf_digital(), generar_foto(), generar_pdf_escaneado()):
+    for ruta in (generar_pdf_digital(), generar_foto(), generar_pdf_escaneado(), generar_foto_producto()):
         print("Generado:", ruta.relative_to(CARPETA.parent.parent))
