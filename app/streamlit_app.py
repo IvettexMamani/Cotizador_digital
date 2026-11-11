@@ -24,7 +24,8 @@ from dotenv import load_dotenv  # noqa: E402
 load_dotenv(RAIZ / ".env")  # antes de importar el extractor: define la clave y el modelo
 
 from ai.extractor import MODELO, ErrorExtraccion, extraer_requisitos, hay_clave, huella  # noqa: E402
-from backend.catalogo import ErrorCatalogo, cargar_catalogo, ruta_catalogo  # noqa: E402
+from backend.catalogo import (EXTENSIONES_CATALOGO, ErrorCatalogo, cargar_catalogo,  # noqa: E402
+                              leer_catalogo_subido, plantilla_excel, ruta_catalogo)
 from backend.cruce import CUMPLE, NO_CUMPLE, ORDEN_ESTADO, REVISAR, cruzar  # noqa: E402
 from backend.ejemplo_sintetico import FOTO_PRODUCTO as FOTO_EJEMPLO  # noqa: E402
 from backend.foto_producto import evaluar_foto, tiene_texto  # noqa: E402
@@ -151,22 +152,57 @@ def mostrar_foto_producto(item):
         return evaluacion
 
 
+def elegir_catalogo():
+    """Paso 4: el catálogo del proyecto (de ejemplo o data/catalogo.csv) o el que sube el proveedor.
+
+    El catálogo subido se usa solo en esta sesión: no se guarda en el servidor ni en GitHub.
+    """
+    ruta = ruta_catalogo()
+    propio = f"Catálogo del proyecto (data/{ruta.name})" if ruta.name == "catalogo.csv" else "Catálogo de ejemplo"
+    origen = st.radio("¿Con qué catálogo cruzo los requisitos?", [propio, "Subir mi catálogo"],
+                      horizontal=True, key="origen_catalogo")
+
+    if origen == "Subir mi catálogo":
+        c1, c2 = st.columns([3, 1])
+        c1.caption("CSV o Excel con **una fila por cada dato técnico** del producto, cada una con su fuente. "
+                   "Se usa solo en esta sesión: no se guarda en el servidor ni en GitHub.")
+        c2.download_button("⬇️ Descargar plantilla", data=plantilla_excel(), file_name="plantilla_catalogo.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        archivo = st.file_uploader("Tu catálogo (CSV o Excel)", type=[e.lstrip(".") for e in EXTENSIONES_CATALOGO],
+                                   key="catalogo_subido")
+        if archivo is None:
+            st.info("Sube tu catálogo para cruzarlo con los requisitos. Si no tienes uno, descarga la plantilla, "
+                    "o usa el catálogo de ejemplo.")
+            return None
+        try:
+            catalogo = leer_catalogo_subido(archivo.name, archivo.getvalue())
+        except ErrorCatalogo as error:
+            st.error(f"No se pudo usar tu catálogo: {error}")
+            return None
+        nombre = archivo.name
+    else:
+        try:
+            catalogo = leer_catalogo(str(ruta), ruta.stat().st_mtime)
+        except (ErrorCatalogo, OSError) as error:
+            st.error(f"No se pudo leer el catálogo `data/{ruta.name}`: {error}")
+            return None
+        nombre = f"data/{ruta.name}"
+
+    ejemplo = catalogo["es_ejemplo"].str.lower().isin(["si", "sí"]).any()
+    st.caption(f"Catálogo: `{nombre}` · {catalogo['sku'].nunique()} productos"
+               + (" · ⚠️ incluye productos de EJEMPLO (ficticios)" if ejemplo else ""))
+    return catalogo
+
+
 def mostrar_cruce(solicitud) -> list:
     """Paso 4: ranking de productos y matriz de cumplimiento por ítem.
 
     Devuelve una lista de (resultado del ítem, producto elegido o None).
     """
     st.header("4. Cruce con tu catálogo")
-    ruta = ruta_catalogo()
-    try:
-        catalogo = leer_catalogo(str(ruta), ruta.stat().st_mtime)
-    except (ErrorCatalogo, OSError) as error:
-        st.error(f"No se pudo leer el catálogo `data/{ruta.name}`: {error}")
+    catalogo = elegir_catalogo()
+    if catalogo is None:
         return []
-
-    ejemplo = catalogo["es_ejemplo"].str.lower().isin(["si", "sí"]).any()
-    st.caption(f"Catálogo: `data/{ruta.name}` · {catalogo['sku'].nunique()} productos"
-               + (" · ⚠️ incluye productos de EJEMPLO (ficticios)" if ejemplo else ""))
 
     seleccion = []
     for resultado in cruzar(solicitud, catalogo):

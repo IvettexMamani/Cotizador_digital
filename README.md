@@ -41,7 +41,7 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 | 1. Subir | PDF digital, PDF escaneado o foto | Streamlit |
 | 2. Leer | Extrae el texto, página por página | pdfplumber; PaddleOCR si la página es imagen |
 | 3. Extraer | Entidad, objeto, ítems, requisitos técnicos (atributo, operador, valor, unidad), plazo, lugar, fecha límite y anexos, **con la cita y la página de cada requisito** | LLM con salida estructurada + Pydantic |
-| 4. Cruzar | Cada requisito contra el catálogo del proveedor: ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo. **Si el bien no está en el catálogo**, el proveedor sube la foto de su etiqueta: el OCR lee lo impreso y se verifica igual, y lo que no se lee queda en rojo | pandas, PaddleOCR |
+| 4. Cruzar | Cada requisito contra el catálogo del proveedor, **que puede subir su propio catálogo** (CSV o Excel, con plantilla descargable): ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo. **Si el bien no está en el catálogo**, el proveedor sube la foto de su etiqueta: el OCR lee lo impreso y se verifica igual, y lo que no se lee queda en rojo | pandas, PaddleOCR |
 | 5. Precio | Costo + flete + margen, comparado con lo que pagó el Estado: mínimo, mediana, máximo y número de órdenes, precio sugerido y semáforo | plotly |
 | 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se genera el PDF: carta, cuadro de precios y matriz de cumplimiento | fpdf2 |
 
@@ -75,6 +75,10 @@ La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado
 
 ![Verificación con la foto de la etiqueta](docs/capturas/05_foto_producto.png)
 
+**El proveedor sube su propio catálogo** (CSV o Excel) o descarga la plantilla para armarlo:
+
+![Subir el catálogo propio](docs/capturas/06_subir_catalogo.png)
+
 *Capturas con la solicitud de EJEMPLO SINTÉTICO, el catálogo de ejemplo y un margen y un flete ilustrativos. Los precios del Estado son reales.*
 
 ### Arquitectura
@@ -89,7 +93,7 @@ flowchart LR
     EXT -->|"salida estructurada"| LLM[("API de Anthropic<br/>Claude Haiku 5.5")]
     EXT -.->|"sin clave o si falla"| JSON[("JSON precalculado<br/>data/precalculado/")]
     EXT --> CRU["Cruce<br/>backend/cruce.py"]
-    CAT[("Catálogo CSV<br/>data/catalogo.csv")] --> CRU
+    CAT[("Catálogo del proveedor<br/>CSV o Excel subido en la app")] --> CRU
     FOTO["Foto de la etiqueta<br/>backend/foto_producto.py + OCR"] -.->|"bien fuera del catálogo"| CRU
     CRU --> PRE["Precio<br/>backend/precio.py"]
     EST[("Precios del Estado<br/>data/precios_estado.csv")] --> PRE
@@ -141,7 +145,7 @@ Costo de IA al mes por usuario = costo por cotización × cotizaciones al mes.
 | App web (Streamlit) | | [`app/streamlit_app.py`](app/streamlit_app.py) |
 | Validación (Pydantic) | | [`ai/esquemas.py`](ai/esquemas.py) |
 | PDF (fpdf2) | | [`backend/pdf.py`](backend/pdf.py) |
-| Pruebas (pytest) | | [`tests/`](tests/): 80 pruebas |
+| Pruebas (pytest) | | [`tests/`](tests/): 89 pruebas |
 | Evaluación | 12 | Opcional, pendiente: medir qué porcentaje de requisitos se extrae bien en solicitudes revisadas a mano. |
 
 ## 9. Qué hizo el agente
@@ -150,7 +154,7 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 80 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
+- **Generó** todo el código, las 89 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida) y el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
 - **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue y qué entra o no en la demo.
@@ -163,7 +167,7 @@ En resumen:
 |---|---|---|
 | Solicitud de cotización | `data/solicitudes/ejemplo_sintetico.*`: **EJEMPLO SINTÉTICO** de una entidad ficticia, en PDF digital, PDF escaneado y foto | ✅ |
 | Solicitudes reales | 3 a 5 solicitudes públicas descargadas de portales de entidades, nunca documentos internos | ✍️ pendiente |
-| Catálogo | `data/catalogo_ejemplo.csv`: productos ficticios marcados EJEMPLO. El catálogo real va en `data/catalogo.csv`, con la fuente de cada dato | ✍️ pendiente el real |
+| Catálogo | `data/catalogo_ejemplo.csv`: productos ficticios marcados EJEMPLO. Cada proveedor sube el suyo en la app (ver abajo) | ✍️ pendiente el real |
 | Foto de producto | `data/fotos_productos/ejemplo_etiqueta_archivador.png`: etiqueta **EJEMPLO SINTÉTICO** de un archivador ficticio (marca inventada). A propósito no indica el material | ✅ |
 | Precios del Estado | `data/precios_estado.csv`: 95 precios unitarios de 18 órdenes de compra de Perú Compras, Acuerdo Marco EXT-CE-2021-7 *Útiles de escritorio, papeles y cartones*, publicadas del 11/05/2026 al 28/10/2026. Cada fila lleva la URL de su orden y la fecha de consulta (09/11/2026) | ✅ |
 
@@ -195,6 +199,20 @@ python -m backend.ordenes_pdf
 ```
 
 - La "Descarga Masiva" de datos abiertos de Perú Compras se descartó: solo llega hasta noviembre de 2023 y no trae el precio por producto.
+
+## Cómo usar tu propio catálogo
+
+En el paso 4, elige **Subir mi catálogo**:
+
+1. Presiona **Descargar plantilla** (Excel). La hoja *instrucciones* explica cada columna.
+2. Llena **una fila por cada dato técnico** de cada producto (gramaje, tamaño, color...), con su **fuente**: el enlace o el nombre de la ficha técnica. Un dato sin fuente queda en rojo (regla de oro).
+3. En `categoria` pon las palabras que aparecen en la descripción del ítem que piden las entidades (por ejemplo, `papel bond` o `archivador`): así se sabe con qué ítems comparar cada producto.
+4. El costo va **sin IGV**; la app lo agrega si corresponde.
+5. Sube el archivo (CSV con `,` o `;`, o Excel). Si algo está mal, la app dice en qué fila.
+
+**Privacidad:** el catálogo subido se usa solo durante tu sesión. No se guarda en el servidor ni en GitHub. Como no hay cuentas de usuario, hay que subirlo cada vez que se abre la app (guardarlo quedaría para "qué sigue", con inicio de sesión).
+
+Si corres la app en tu computadora, también puedes dejar tu catálogo en `data/catalogo.csv`: se usa en lugar del de ejemplo (no lo subas a GitHub si el repositorio es público).
 
 ## Cómo replicarlo en otra computadora
 

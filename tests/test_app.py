@@ -110,3 +110,15 @@ def test_la_barra_lateral_muestra_el_avance_real(app):
     app.checkbox(key="responsable").check().run()
     app.checkbox(key="confirmo_2_EJ-ARC-080_material").check().run()
     assert [p[0] for p in avance(app)] == ["✅"] * 6
+
+
+def test_subir_mi_catalogo_pide_el_archivo_antes_de_cruzar(app):
+    procesar_ejemplo(app)
+    app.radio(key="origen_catalogo").set_value("Subir mi catálogo").run()
+    assert not app.exception
+    assert any("Sube tu catálogo" in i.value for i in app.info)
+    assert not any(h.value.startswith("5.") for h in app.header)  # sin catálogo no hay tarjeta de precio
+    assert [p[0] for p in avance(app)] == ["✅", "✅", "✅", "👉", "⚪", "⚪"]
+
+    app.radio(key="origen_catalogo").set_value("Catálogo de ejemplo").run()  # vuelve al de ejemplo
+    assert any(h.value.startswith("5.") for h in app.header)
