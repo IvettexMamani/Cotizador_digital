@@ -28,9 +28,27 @@ Las unidades de logística de las entidades públicas envían **solicitudes de c
 4. calcular un precio competitivo;
 5. llenar la carta y los anexos.
 
-Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder**, y el Estado pierde ofertas de mypes que sí podían cumplir.
+Todo se hace a mano: una de las proveedoras entrevistadas imprime la solicitud, la llena, la firma, la escanea y la envía. Con experiencia, eso toma de 10 a 30 minutos. **Lo difícil es ganar la orden:** gana el menor precio, y una especificación que no coincide exactamente descarta la oferta, incluso después de adjudicada.
 
-> ✍️ **Pendiente (Ivette):** las cifras y una frase textual de tus 3 conversaciones (`docs/research/`): cuántas solicitudes reciben al mes, cuántas quedan sin responder y cuánto tiempo toma cada cotización.
+### Lo que escuchamos
+
+Dos conversaciones grabadas con proveedores del Estado (resúmenes sin datos personales en [`docs/research/`](docs/research/)):
+
+| | Mype ferretera (Tacna) | Imprenta familiar |
+|---|---|---|
+| Vende al Estado | Hace 8 años | Desde 2004 |
+| Solicitudes que recibe | Unas 10 al día, por correo | Por correo y WhatsApp; no dio una cifra |
+| Tiempo por cotización | 10 a 30 min; de 1 a 2 horas, o hasta el día siguiente, si el producto no es común | 15 a 30 min |
+| Cuántas gana | 3 a 5 de cada 10 que responde | Gana el menor precio |
+| Cuáles no responde | Pocas: las de otro rubro o de fuera de Tacna | Las de entidades sin presupuesto, por el riesgo de no cobrar |
+| Perdió una orden por una especificación | Sí: pidieron una medida de perno que no existe; ofreció la más cercana y no le adjudicaron | Sí: le rechazaron un bien ya adjudicado que no coincidía con las especificaciones |
+| Cómo pone el precio | Distancia, cantidad, dólar, flete y plazo de pago de la entidad | Por experiencia; una agenda bajó de S/ 8 a S/ 6 en cuatro años |
+
+> «Las entidades ahora son un poquito más especiales, siempre te piden fichas técnicas.» Dueña de una mype ferretera.
+>
+> «Claro que sí, sería una suerte para nosotros.» Dueño de una imprenta, ante la idea de ver lo que pagó el Estado por cada bien.
+
+> ✍️ **Pendiente (Ivette):** la tercera conversación, con la pregunta de cuánto pagaría al mes, que todavía no se ha hecho; y verificar en el audio las cifras marcadas con ✍️ en `docs/research/`.
 
 ## 4. Solución e insight
 
@@ -45,9 +63,9 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 | 5. Precio | Costo + flete + margen, comparado con lo que pagó el Estado: mínimo, mediana, máximo y número de órdenes, precio sugerido y semáforo | plotly |
 | 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se descarga la **cotización del proveedor con la estructura de la solicitud de cotización del SIGA** (cantidad, unidad, ítem, descripción, valor total, TOTAL y condiciones de compra), con la matriz de cumplimiento. **Opcional:** si la entidad envió su solicitud SIGA, el proveedor la agrega y la cotización se entrega en ese mismo documento, completado encima del original | fpdf2, pypdf, PaddleOCR |
 
-**Insight:** el cuello de botella no es la falta de producto, sino el **trabajo de verificación**: leer, contrastar y documentar. Por eso la herramienta no "decide" por el proveedor. Hace el trabajo pesado y muestra la fuente de cada dato. Lo que no tiene fuente queda en rojo, y la responsabilidad final (revisar y firmar) sigue siendo del proveedor.
+**Insight (de las conversaciones):** el proveedor con experiencia no tarda en llenar la cotización, entre 10 y 30 minutos. **Pierde la orden por el precio o por un detalle técnico que no coincide.** Los dos proveedores entrevistados perdieron una orden por una especificación, y los dos dicen que gana el menor precio. Por eso la app pone el peso en la matriz de cumplimiento, requisito por requisito y con la fuente de cada dato (paso 4), y en el precio comparado con lo que pagó el Estado (paso 5). La herramienta no "decide" por el proveedor: lo que no tiene fuente queda en rojo, y la responsabilidad final (revisar y firmar) sigue siendo suya.
 
-> ✍️ **Pendiente (Ivette):** valida o corrige este insight con lo que escuches en tus conversaciones.
+> ✍️ **Pendiente (Ivette):** confirma o corrige este insight con la tercera conversación.
 
 ## 5. Why now
 
@@ -179,6 +197,7 @@ En resumen:
 - **Generó** todo el código, las 100 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
 - **Funciones que agregó después del plan inicial, a pedido de Ivette:** verificación de un bien fuera del catálogo con la foto de su etiqueta, subida del catálogo propio (CSV o Excel, con plantilla), una tabla de requisitos por ítem, la barra lateral con el avance del usuario y el llenado del formato de la entidad (solicitud SIGA) sobre el PDF original.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida), el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar, que la exportación de datos abiertos de Perú Compras no traía el precio por producto (se leyeron los PDF de las órdenes con OCR, con autorización de Ivette y las reglas de scraping responsable) y un error de redondeo que dejaba el precio sugerido bajo el costo.
+- **Transcribió y resumió** las conversaciones que grabó Ivette, en su laptop, sin enviar el audio a ningún servicio. En los resúmenes no hay nombres, y cada dato lleva el minuto de la grabación para verificarlo. Las grabaciones no están en el repositorio.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
 - **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue, qué entra o no en la demo y las funciones que se agregaron después (foto de producto, catálogo propio, tabla por ítem, barra de avance y formato de la entidad). Para el formato, aportó un documento real que se usó solo como referencia de diseño: no está en el repositorio.
 

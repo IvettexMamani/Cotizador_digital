@@ -7,7 +7,7 @@ Contexto esencial para cualquier sesión de Claude Code en este repo. El encargo
 - **Founder:** Ivette Mamani Flores, contadora pública y administradora de contratos en el sector público (Tacna). Trabaja sola. Claude actúa como co-founder técnico.
 - **Contexto:** proyecto final de la Diplomatura en Ciencia de Datos (Q-Lab PUCP). Se necesita una **demo que funcione en vivo**, de principio a fin, con datos reales, construida en **un solo día**.
 - **One-liner (borrador):** Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee la solicitud de cotización y la cruza con su catálogo de productos.
-- **Problema:** las áreas de logística envían solicitudes de cotización (contratos menores, hasta 8 UIT). El proveedor responde a mano (Word/Excel): leer TDR, ver si cumple, buscar ficha técnica, calcular precio, llenar anexos. Muchas quedan sin responder.
+- **Problema:** las áreas de logística envían solicitudes de cotización (contratos menores, hasta 8 UIT). El proveedor responde a mano (Word/Excel): leer TDR, ver si cumple, buscar ficha técnica, calcular precio, llenar anexos. Muchas quedan sin responder (supuesto del encargo). **Las 2 conversaciones del 2026-11-11 no lo respaldan:** cotizar les toma 10–30 min; pierden órdenes por precio o por una especificación que no coincide. Ver `docs/research/` y el insight del README.
 
 ## Regla de oro (no negociable)
 
@@ -130,4 +130,5 @@ Opcional: script de evaluación (sesión 12) del % de requisitos bien extraídos
 - Pruebas: `.venv\Scripts\python.exe -m pytest`.
 - PaddleOCR: modelos ya descargados en `~/.paddlex/official_models` (mobile det + latin rec). `paddlepaddle` fijado en 3.2.2: la 3.3.x falla con oneDNN en CPU. ~6 s por página.
 - git con remoto `origin` = repo de GitHub, rama `main`. `gh` no instalado.
+- **Transcribir entrevistas (solo desarrollo, no está en `requirements.txt`):** `faster-whisper` 1.2.1 con modelo `small` en CPU int8 (~4 min por cada 14 min de audio). En esta laptop `ctranslate2` 4.9 y `onnxruntime` 1.31 se cierran sin mensaje (access violation): usar `ctranslate2==4.6.0` (necesita `setuptools<80` por `pkg_resources`) y `onnxruntime==1.20.1`. Los audios y las transcripciones van en `data/cache/entrevistas/` (tienen voces de personas reales: nunca al repo).
 - `Cotizador_digital/` dentro de esta carpeta es un clon aparte del mismo repo; está excluido localmente en `.git/info/exclude`. No trabajar ahí.
