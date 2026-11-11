@@ -43,7 +43,7 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 | 3. Extraer | Entidad, objeto, ítems, requisitos técnicos (atributo, operador, valor, unidad), plazo, lugar, fecha límite y anexos, **con la cita y la página de cada requisito** | LLM con salida estructurada + Pydantic |
 | 4. Cruzar | Cada requisito contra el catálogo del proveedor, **que puede subir su propio catálogo** (CSV o Excel, con plantilla descargable): ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo. **Si el bien no está en el catálogo**, el proveedor sube la foto de su etiqueta: el OCR lee lo impreso y se verifica igual, y lo que no se lee queda en rojo | pandas, PaddleOCR |
 | 5. Precio | Costo + flete + margen, comparado con lo que pagó el Estado: mínimo, mediana, máximo y número de órdenes, precio sugerido y semáforo | plotly |
-| 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se genera el PDF: carta, cuadro de precios y matriz de cumplimiento | fpdf2 |
+| 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se genera el PDF: carta, cuadro de precios y matriz de cumplimiento. **Si la entidad pide su propio formato** (por ejemplo, la solicitud de cotización del SIGA, que se responde en el mismo documento), la app escribe encima del PDF original el valor total de cada ítem, el TOTAL y las condiciones de compra; lo que no sabe queda en blanco | fpdf2, pypdf, PaddleOCR |
 
 **Insight:** el cuello de botella no es la falta de producto, sino el **trabajo de verificación**: leer, contrastar y documentar. Por eso la herramienta no "decide" por el proveedor. Hace el trabajo pesado y muestra la fuente de cada dato. Lo que no tiene fuente queda en rojo, y la responsabilidad final (revisar y firmar) sigue siendo del proveedor.
 
@@ -87,6 +87,12 @@ La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado
 
 ![Subir el catálogo propio](docs/capturas/06_subir_catalogo.png)
 
+**El formato de la entidad, completado:** con una solicitud con formato del SIGA (EJEMPLO SINTÉTICO, escaneada), la app muestra qué escribirá y de dónde sale cada dato, y devuelve el mismo PDF con los valores en azul. Garantía y tipo de cambio quedan en blanco porque el proveedor no los indicó.
+
+| Vista previa en la app | Formato completado |
+|---|---|
+| ![Vista previa del formato](docs/capturas/07_formato_entidad.png) | ![Formato SIGA completado](docs/capturas/08_formato_completado.png) |
+
 *Capturas con la solicitud de EJEMPLO SINTÉTICO, el catálogo de ejemplo y un margen y un flete ilustrativos. Los precios del Estado son reales.*
 
 ### Arquitectura
@@ -108,6 +114,8 @@ flowchart LR
     OC["Órdenes de Perú Compras (PDF)<br/>backend/ordenes_pdf.py + OCR"] -.->|"se prepara antes"| EST
     PRE --> CON["Confirmación"]
     CON -->|"Revisé y me hago responsable"| PDF["PDF<br/>backend/pdf.py"]
+    CON -->|"si la entidad pide su formato"| FMT["Formato de la entidad completado<br/>backend/formato_entidad.py"]
+    FMT -->|"lo firma y presenta el proveedor"| U
     PDF -->|"lo firma y presenta el proveedor"| U
 ```
 
@@ -154,8 +162,8 @@ Costo de IA al mes por usuario = costo por cotización × cotizaciones al mes.
 | Visualización (plotly) | | [`backend/grafico_precio.py`](backend/grafico_precio.py) |
 | App web (Streamlit) | | [`app/streamlit_app.py`](app/streamlit_app.py) |
 | Validación (Pydantic) | | [`ai/esquemas.py`](ai/esquemas.py) |
-| PDF (fpdf2) | | [`backend/pdf.py`](backend/pdf.py) |
-| Pruebas (pytest) | | [`tests/`](tests/): 89 pruebas |
+| PDF (fpdf2, pypdf) | | [`backend/pdf.py`](backend/pdf.py) (cotización propia) y [`backend/formato_entidad.py`](backend/formato_entidad.py) (escribe sobre el formato de la entidad) |
+| Pruebas (pytest) | | [`tests/`](tests/): 98 pruebas |
 | Evaluación | 12 | Opcional, pendiente: medir qué porcentaje de requisitos se extrae bien en solicitudes revisadas a mano. |
 
 ## 9. Qué hizo el agente
@@ -164,11 +172,11 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 89 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
-- **Funciones que agregó después del plan inicial, a pedido de Ivette:** verificación de un bien fuera del catálogo con la foto de su etiqueta, subida del catálogo propio (CSV o Excel, con plantilla), una tabla de requisitos por ítem y la barra lateral con el avance del usuario.
+- **Generó** todo el código, las 98 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
+- **Funciones que agregó después del plan inicial, a pedido de Ivette:** verificación de un bien fuera del catálogo con la foto de su etiqueta, subida del catálogo propio (CSV o Excel, con plantilla), una tabla de requisitos por ítem, la barra lateral con el avance del usuario y el llenado del formato de la entidad (solicitud SIGA) sobre el PDF original.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida), el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar, que la exportación de datos abiertos de Perú Compras no traía el precio por producto (se leyeron los PDF de las órdenes con OCR, con autorización de Ivette y las reglas de scraping responsable) y un error de redondeo que dejaba el precio sugerido bajo el costo.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
-- **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue, qué entra o no en la demo y las funciones que se agregaron después (foto de producto, catálogo propio, tabla por ítem y barra de avance).
+- **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue, qué entra o no en la demo y las funciones que se agregaron después (foto de producto, catálogo propio, tabla por ítem, barra de avance y formato de la entidad). Para el formato, aportó un documento real que se usó solo como referencia de diseño: no está en el repositorio.
 
 ---
 
@@ -179,6 +187,7 @@ En resumen:
 | Solicitud de cotización | `data/solicitudes/ejemplo_sintetico.*`: **EJEMPLO SINTÉTICO** de una entidad ficticia, en PDF digital, PDF escaneado y foto | ✅ |
 | Solicitudes reales | 3 a 5 solicitudes públicas descargadas de portales de entidades, nunca documentos internos | ✍️ pendiente |
 | Catálogo | `data/catalogo_ejemplo.csv`: productos ficticios marcados EJEMPLO. Cada proveedor sube el suyo en la app (ver abajo) | ✍️ pendiente el real |
+| Solicitud con formato del SIGA | `data/solicitudes/ejemplo_siga_escaneado.pdf`: **EJEMPLO SINTÉTICO** con diseño inspirado en la solicitud de cotización que imprime el SIGA (entidad, proveedor, RUC y códigos ficticios), escaneada como llegan las reales | ✅ |
 | Foto de producto | `data/fotos_productos/ejemplo_etiqueta_archivador.png`: etiqueta **EJEMPLO SINTÉTICO** de un archivador ficticio (marca inventada). A propósito no indica el material | ✅ |
 | Precios del Estado | `data/precios_estado.csv`: 95 precios unitarios de 18 órdenes de compra de Perú Compras, Acuerdo Marco EXT-CE-2021-7 *Útiles de escritorio, papeles y cartones*, publicadas del 11/05/2026 al 28/10/2026. Cada fila lleva la URL de su orden y la fecha de consulta (09/11/2026) | ✅ |
 

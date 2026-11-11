@@ -68,6 +68,28 @@ def _agrupar_en_lineas(textos, cajas) -> list[str]:
     return ["  ".join(f["texto"] for f in sorted(linea, key=lambda f: f["x"])) for linea in lineas]
 
 
+@dataclass
+class FragmentoOCR:
+    """Un bloque de texto detectado y su caja, en píxeles de la imagen (origen arriba a la izquierda)."""
+    texto: str
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+def fragmentos_imagen(imagen: Image.Image) -> list[FragmentoOCR]:
+    """Texto con su posición: sirve para escribir encima de un formato escaneado."""
+    ocr = cargar_ocr()
+    arreglo = np.array(imagen.convert("RGB"))[:, :, ::-1]  # PaddleOCR espera BGR
+    fragmentos = []
+    for res in ocr.predict(arreglo):
+        for texto, caja in zip(res["rec_texts"], res["rec_boxes"]):
+            x0, y0, x1, y1 = map(float, caja)
+            fragmentos.append(FragmentoOCR(str(texto), x0, y0, x1, y1))
+    return fragmentos
+
+
 def leer_imagen(imagen: Image.Image) -> ResultadoOCR:
     """Aplica OCR a una imagen y devuelve el texto en orden de lectura."""
     ocr = cargar_ocr()

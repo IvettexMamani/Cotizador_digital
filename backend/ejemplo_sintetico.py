@@ -12,6 +12,7 @@ Ejecutar desde la raíz del repo:
     .venv\\Scripts\\python.exe -m backend.ejemplo_sintetico
 """
 
+import io
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -206,6 +207,120 @@ def generar_foto_producto(destino: Path = FOTO_PRODUCTO) -> Path:
     return destino
 
 
+# ---------------------------------------------------------------- solicitud con formato del SIGA
+
+SIGA_ESCANEADO = CARPETA / "ejemplo_siga_escaneado.pdf"
+
+# Diseño inspirado en la "Solicitud de cotización" que imprime el SIGA del MEF: el proveedor
+# responde en el mismo documento (VALOR TOTAL por ítem, TOTAL y condiciones de compra).
+# Entidad, proveedor, RUC y códigos son ficticios.
+SIGA_ITEMS = [
+    ("200", "PAQUETE", "111100000001", "PAPEL BOND A4", ESPECIFICACIONES["Ítem 1 - Papel bond A4"]),
+    ("150", "UNIDAD", "111100000002", "ARCHIVADOR DE PALANCA LOMO ANCHO TAMAÑO OFICIO",
+     ESPECIFICACIONES["Ítem 2 - Archivador de palanca"]),
+]
+SIGA_CONDICIONES = [
+    "- Forma de Pago:", "- Garantía:", "- La Cotización debe incluir el I.G.V.",
+    "- Plazo de Entrega en N° Días/ Ejecución del Servicio :", "- Tipo de Moneda :",
+    "- Validez de la cotización :", "- Indicar Marca de Procedencia", "- Tipo de Cambio :",
+]
+COLUMNAS_SIGA = [("CANTIDAD", 18), ("UNIDAD\nMEDIDA", 22), ("ITEM", 26), ("DESCRIPCION", 96), ("VALOR\nTOTAL", 24)]
+
+
+def _texto(pdf: FPDF, x: float, y: float, texto: str, tamano: float = 8, estilo: str = "") -> None:
+    pdf.set_font("Helvetica", estilo, tamano)
+    pdf.set_xy(x, y)
+    pdf.cell(0, tamano * 0.45, texto)
+
+
+def generar_siga_digital() -> bytes:
+    """La solicitud SIGA de ejemplo como PDF digital (se usa para generar la versión escaneada)."""
+    pdf = FPDF(format="A4")
+    pdf.set_creation_date(FECHA_FIJA)
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+    for i, linea in enumerate(("Sistema Integrado de Gestión Administrativa", "Módulo de Logística", "Versión 26.01.02")):
+        _texto(pdf, 12, 10 + i * 4, linea, 7.5, "B")
+    for i, linea in enumerate(("Fecha  :  06/11/2026", "Hora    :  09:00", "Página : 1 de 1")):
+        _texto(pdf, 160, 10 + i * 4.5, linea, 8.5, "B")
+
+    pdf.set_fill_color(255, 230, 230)
+    pdf.set_text_color(160, 0, 0)
+    pdf.set_font("Helvetica", "B", 7.5)
+    pdf.set_xy(12, 24)
+    pdf.cell(186, 5, "EJEMPLO SINTÉTICO - Documento ficticio inspirado en el formato del SIGA. "
+             "Entidad y proveedor ficticios.", border=1, fill=True, align="C")
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_xy(12, 31)
+    pdf.cell(186, 6, "SOLICITUD DE COTIZACIÓN N°  000123", align="C")
+    _texto(pdf, 12, 40, "UNIDAD EJECUTORA   :  001   MUNICIPALIDAD DISTRITAL DE EJEMPLO (ENTIDAD FICTICIA)", 7.5, "B")
+    _texto(pdf, 12, 44.5, "NRO. IDENTIFICACIÓN :  000000", 7.5, "B")
+
+    pdf.rect(12, 50, 186, 30)
+    proveedor = [
+        ("Señores", "EMPRESA DE EJEMPLO S.A.C. (PROVEEDOR FICTICIO)"),
+        ("Dirección", "AV. LOS EJEMPLOS 456 - TACNA"),
+        ("Teléfono", "000000000"),
+        ("Email", ""),
+        ("Concepto", "ADQUISICIÓN DE ÚTILES DE OFICINA PARA LA SUBGERENCIA DE ADMINISTRACIÓN"),
+    ]
+    for i, (etiqueta, valor) in enumerate(proveedor):
+        _texto(pdf, 15, 52 + i * 5.5, etiqueta, 7.5, "B")
+        _texto(pdf, 35, 52 + i * 5.5, f":   {valor}", 7.5)
+    _texto(pdf, 150, 52, "R.U.C.   :   00000000000", 7.5, "B")
+    _texto(pdf, 100, 68.5, "Fecha   :   06/11/2026", 7.5)
+    _texto(pdf, 160, 68.5, "Moneda  :  S/.", 7.5, "B")
+
+    # Tabla: encabezado, cuerpo alto con líneas verticales y casilla TOTAL
+    x, arriba, alto_encabezado, abajo = 12, 84, 9, 196
+    pdf.rect(x, arriba, 186, abajo - arriba)
+    pdf.line(x, arriba + alto_encabezado, x + 186, arriba + alto_encabezado)
+    pdf.set_font("Helvetica", "B", 8)
+    borde = x
+    for titulo, ancho in COLUMNAS_SIGA:
+        pdf.set_xy(borde, arriba + 1)
+        pdf.multi_cell(ancho, 3.5, titulo, align="C")
+        borde += ancho
+        if borde < x + 186:
+            pdf.line(borde, arriba, borde, abajo)
+    fila = arriba + alto_encabezado + 2
+    for cantidad, unidad, codigo, descripcion, especificaciones in SIGA_ITEMS:
+        _texto(pdf, x + 2, fila, cantidad, 8)
+        _texto(pdf, x + 19, fila, unidad, 8)
+        _texto(pdf, x + 41, fila, codigo, 8)
+        _texto(pdf, x + 67, fila, descripcion, 8, "B")
+        for j, especificacion in enumerate(especificaciones, start=1):
+            _texto(pdf, x + 69, fila + j * 4, especificacion, 7.5)
+        fila += (len(especificaciones) + 2) * 4
+    pdf.rect(150, abajo, 24, 6)
+    pdf.rect(174, abajo, 24, 6)
+    _texto(pdf, 156, abajo + 1.5, "TOTAL", 8, "B")
+
+    _texto(pdf, 14, 206, "Las cotizaciones a valores referenciales deben estar dirigidas a "
+           "MUNICIPALIDAD DISTRITAL DE EJEMPLO (ENTIDAD FICTICIA)", 7)
+    _texto(pdf, 14, 214, "Condiciones de Compra", 7.5, "B")
+    for i, condicion in enumerate(SIGA_CONDICIONES):
+        _texto(pdf, 14, 218 + i * 4, condicion, 7.5, "B")
+    _texto(pdf, 14, 218 + len(SIGA_CONDICIONES) * 4, "Atentamente;", 7.5)
+    _texto(pdf, 120, 218, "Requerimientos Técnicos:", 7)
+    _texto(pdf, 120, 222, "Ver la descripción de cada ítem.", 7)
+    return bytes(pdf.output())
+
+
+def generar_siga_escaneado(destino: Path = SIGA_ESCANEADO) -> Path:
+    """Versión escaneada (solo imagen), como llegan las solicitudes reales."""
+    with pdfplumber.open(io.BytesIO(generar_siga_digital())) as documento:
+        imagen = documento.pages[0].to_image(resolution=150).original.convert("L")
+    pdf = FPDF(format="A4")
+    pdf.set_creation_date(FECHA_FIJA)
+    pdf.add_page()
+    pdf.image(imagen, x=0, y=0, w=pdf.w, h=pdf.h)
+    pdf.output(str(destino))
+    return destino
+
+
 if __name__ == "__main__":
-    for ruta in (generar_pdf_digital(), generar_foto(), generar_pdf_escaneado(), generar_foto_producto()):
+    for ruta in (generar_pdf_digital(), generar_foto(), generar_pdf_escaneado(), generar_foto_producto(),
+                 generar_siga_escaneado()):
         print("Generado:", ruta.relative_to(CARPETA.parent.parent))

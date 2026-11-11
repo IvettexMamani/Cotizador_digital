@@ -17,6 +17,35 @@ truststore.inject_into_ssl()  # certificados del sistema (un antivirus puede int
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))  # para importar ai/ y backend/ desde app/
 
+
+def _descargar_modulos_cambiados() -> None:
+    """Streamlit vuelve a ejecutar este archivo cuando cambia, pero deja en memoria los módulos de
+    ai/ y backend/ que ya importó. Si alguno cambió en disco (por ejemplo, cuando Streamlit Cloud
+    trae una versión nueva de GitHub), se descargan todos y las importaciones de abajo leen la versión
+    nueva. Así no hace falta reiniciar la app a mano después de cada actualización."""
+    propios = {nombre: modulo for nombre, modulo in sys.modules.items()
+               if nombre.split(".")[0] in ("ai", "backend") and getattr(modulo, "__file__", None)}
+    registro = getattr(sys, "_cotizador_mtimes", None)
+    if registro is None:  # primera vez en este proceso: no se sabe qué versión está cargada
+        cambiados = bool(propios)
+    else:  # un módulo sin registro se importó después (import diferido): se toma como actual
+        cambiados = any(nombre in registro and registro[nombre] != Path(modulo.__file__).stat().st_mtime
+                        for nombre, modulo in propios.items())
+    if cambiados:
+        for nombre in propios:
+            del sys.modules[nombre]
+    sys._cotizador_mtimes = {} if cambiados or registro is None else registro
+
+
+def _registrar_modulos() -> None:
+    registro = sys._cotizador_mtimes
+    for nombre, modulo in list(sys.modules.items()):
+        if nombre.split(".")[0] in ("ai", "backend") and getattr(modulo, "__file__", None):
+            registro.setdefault(nombre, Path(modulo.__file__).stat().st_mtime)
+
+
+_descargar_modulos_cambiados()
+
 import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
@@ -28,6 +57,7 @@ from backend.catalogo import (EXTENSIONES_CATALOGO, ErrorCatalogo, cargar_catalo
                               leer_catalogo_subido, plantilla_excel, ruta_catalogo)
 from backend.cruce import CUMPLE, NO_CUMPLE, ORDEN_ESTADO, REVISAR, cruzar  # noqa: E402
 from backend.ejemplo_sintetico import FOTO_PRODUCTO as FOTO_EJEMPLO  # noqa: E402
+from backend.formato_entidad import CondicionesOferta, anchos_paginas, leer_formato, llenar, planificar  # noqa: E402
 from backend.foto_producto import evaluar_foto, tiene_texto  # noqa: E402
 from backend.grafico_precio import grafico_precio  # noqa: E402
 from backend.lectura import EXTENSIONES_ADMITIDAS, leer_documento  # noqa: E402
@@ -36,6 +66,8 @@ from backend.pdf import (Cotizacion, DatosProveedor, LineaCotizacion, generar_pd
 from backend.precio import (IGV, con_igv, piso_unitario, precio_con_margen, precio_sugerido,  # noqa: E402
                             referencia_estado, repartir_flete, semaforo)
 from backend.precios import PRECIOS_ESTADO, buscar_precios, cargar_precios_estado, terminos_por_defecto  # noqa: E402
+
+_registrar_modulos()
 
 DIAGRAMA = RAIZ / "docs" / "flujo_demo.png"
 CARPETA_SOLICITUDES = RAIZ / "data" / "solicitudes"
@@ -82,6 +114,12 @@ def leer_catalogo(ruta: str, modificado: float):
 @st.cache_data(show_spinner=False)
 def leer_precios_estado(modificado: float):
     return cargar_precios_estado()
+
+
+@st.cache_data(show_spinner=False)
+def leer_formato_entidad(nombre: str, contenido: bytes):
+    # En caché: si el formato es escaneado, el OCR se hace una sola vez.
+    return leer_formato(nombre, contenido)
 
 
 def formato_cantidad(valor: float) -> str:
@@ -330,7 +368,7 @@ def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
     return precios, aplicar_igv
 
 
-def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion) -> bool:
+def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion, documento) -> bool:
     """Paso 6: resumen, confirmación de lo que está en rojo y PDF. Devuelve True si el PDF está listo."""
     st.header("6. Confirmación y PDF")
     with st.expander("Datos de tu empresa para el PDF (opcional: no se guardan)"):
@@ -389,7 +427,59 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion)
     st.download_button("📄 Descargar cotización (PDF)", data=generar_pdf(cotizacion),
                        file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="pdf")
     st.caption("Revisa el PDF, fírmalo y preséntalo tú. La herramienta no firma ni envía nada.")
+    mostrar_formato_entidad(cotizacion, documento)
     return True
+
+
+def mostrar_formato_entidad(cotizacion, documento) -> None:
+    """Paso 6 (opción): completar el formato de la entidad, escribiendo encima del PDF original."""
+    st.subheader("Formato de la entidad (opcional)")
+    st.caption("Si la entidad pide responder en su propio formato (por ejemplo, la solicitud de cotización del "
+               "SIGA, que se llena en el mismo documento), la app escribe encima del PDF original los datos ya "
+               "verificados. Lo que no sabe queda en blanco y la firma nunca se llena.")
+    nombre_doc, contenido_doc = documento
+    opciones = (["Completar la solicitud del paso 1"] if contenido_doc is not None else []) +         ["Subir el formato de la entidad"]
+    origen = st.radio("¿Qué formato completo?", opciones, horizontal=True, key="origen_formato")
+    if origen == "Subir el formato de la entidad":
+        archivo = st.file_uploader("Formato de la entidad (PDF o foto)", type=["pdf", "png", "jpg", "jpeg"],
+                                   key="formato_subido")
+        if archivo is None:
+            return
+        nombre, contenido = archivo.name, archivo.getvalue()
+    else:
+        nombre, contenido = nombre_doc, contenido_doc
+
+    with st.expander("Condiciones de tu oferta (las que pida el formato)", expanded=True):
+        st.caption("Escribe solo lo que ofreces. Lo que dejes vacío queda en blanco en el formato.")
+        c1, c2 = st.columns(2)
+        condiciones = CondicionesOferta(
+            forma_pago=c1.text_input("Forma de pago", key="cond_pago", placeholder="Ej.: a la conformidad"),
+            garantia=c2.text_input("Garantía", key="cond_garantia"),
+            plazo_entrega=c1.text_input("Plazo de entrega", key="cond_plazo", placeholder="Ej.: 10 días calendario"),
+            validez=c2.text_input("Validez de la cotización", key="cond_validez", placeholder="Ej.: 30 días"),
+        )
+    with st.spinner("Leyendo el formato (si es escaneado, con OCR)..."):
+        pdf_formato, paginas = leer_formato_entidad(nombre, contenido)
+    plan = planificar(paginas, anchos_paginas(pdf_formato), cotizacion, condiciones)
+    if not plan.reconocido:
+        st.warning("No reconocí la tabla de precios de este formato (busco una columna «VALOR TOTAL», «PRECIO "
+                   "TOTAL» o «IMPORTE TOTAL» y la descripción de cada ítem). Presenta el PDF de la cotización.")
+        return
+    for aviso in plan.avisos:
+        st.warning(aviso)
+    filas = [{"Campo del formato": e.campo, "Se escribe": e.texto, "De dónde sale": e.fuente}
+             for e in plan.escrituras]
+    filas += [{"Campo del formato": c, "Se escribe": "— queda en blanco —", "De dónde sale": "La app no tiene ese dato"}
+              for c in plan.en_blanco]
+    tabla = pd.DataFrame(filas)
+    en_blanco = tabla["Se escribe"] == "— queda en blanco —"
+    st.dataframe(tabla.style.apply(lambda fila: [COLORES[REVISAR] if en_blanco[fila.name] else ""] * len(fila),
+                                   axis=1), hide_index=True, width="stretch")
+    for falta in plan.no_ubicados:
+        st.info(falta)
+    st.download_button("📝 Descargar el formato completado (PDF)", data=llenar(pdf_formato, plan),
+                       file_name=f"{Path(nombre).stem}_completado.pdf", mime="application/pdf", key="formato_pdf")
+    st.caption("Lo que escribió la app está en azul. Revísalo, fírmalo y preséntalo tú.")
 
 
 def mostrar_avance(contenedor, hechos: list[bool]) -> None:
@@ -408,7 +498,9 @@ def mostrar_avance(contenedor, hechos: list[bool]) -> None:
 
 
 def ejemplos_disponibles() -> list[Path]:
-    return sorted(p for p in CARPETA_SOLICITUDES.iterdir() if p.suffix.lower() in EXTENSIONES_ADMITIDAS)
+    # El PDF digital va primero: es el más rápido para empezar la demo
+    return sorted((p for p in CARPETA_SOLICITUDES.iterdir() if p.suffix.lower() in EXTENSIONES_ADMITIDAS),
+                  key=lambda p: (p.name != "ejemplo_sintetico.pdf", p.name))
 
 
 # ---------------------------------------------------------------- encabezado y barra lateral
@@ -570,7 +662,7 @@ if resultado is not None:
     seleccion = mostrar_cruce(solicitud)
     if seleccion:
         precios, aplicar_igv = mostrar_precio(seleccion)
-        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado)
+        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado, (nombre, contenido))
 
 mostrar_avance(avance, [
     contenido is not None,

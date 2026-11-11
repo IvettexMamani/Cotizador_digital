@@ -1,0 +1,109 @@
+{
+  "descripcion": "EJEMPLO SINTÉTICO: solicitud de cotización ficticia con diseño inspirado en el formato del SIGA.",
+  "origen": "Transcrito a mano del documento generado por backend/ejemplo_sintetico.py (generar_siga_escaneado). No salió de una llamada al LLM.",
+  "archivos_sha256": {
+    "ejemplo_siga_escaneado.pdf": "ed563f36bcc42e81c4c94a2dedee91b447c8e189f71a2c353f21a77fd3729b0e"
+  },
+  "solicitud": {
+    "entidad": "MUNICIPALIDAD DISTRITAL DE EJEMPLO (ENTIDAD FICTICIA)",
+    "numero_solicitud": "000123",
+    "objeto": "ADQUISICIÓN DE ÚTILES DE OFICINA PARA LA SUBGERENCIA DE ADMINISTRACIÓN",
+    "items": [
+      {
+        "numero": 1,
+        "descripcion": "PAPEL BOND A4",
+        "cantidad": 200,
+        "unidad": "PAQUETE",
+        "requisitos": [
+          {
+            "atributo": "tamaño",
+            "operador": "=",
+            "valor": "A4",
+            "unidad": null,
+            "texto_fuente": "Tamaño: A4 (210 x 297 mm).",
+            "pagina": 1
+          },
+          {
+            "atributo": "gramaje",
+            "operador": ">=",
+            "valor": "75",
+            "unidad": "g/m2",
+            "texto_fuente": "Gramaje: mínimo 75 g/m2.",
+            "pagina": 1
+          },
+          {
+            "atributo": "hojas por paquete",
+            "operador": "=",
+            "valor": "500",
+            "unidad": "hojas",
+            "texto_fuente": "Contenido: 500 hojas por paquete.",
+            "pagina": 1
+          },
+          {
+            "atributo": "color",
+            "operador": "=",
+            "valor": "blanco",
+            "unidad": null,
+            "texto_fuente": "Color: blanco.",
+            "pagina": 1
+          },
+          {
+            "atributo": "presentación",
+            "operador": "=",
+            "valor": "paquete sellado de fábrica",
+            "unidad": null,
+            "texto_fuente": "Presentación: paquete sellado de fábrica.",
+            "pagina": 1
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "descripcion": "ARCHIVADOR DE PALANCA LOMO ANCHO TAMAÑO OFICIO",
+        "cantidad": 150,
+        "unidad": "UNIDAD",
+        "requisitos": [
+          {
+            "atributo": "tamaño",
+            "operador": "=",
+            "valor": "oficio",
+            "unidad": null,
+            "texto_fuente": "Tamaño: oficio.",
+            "pagina": 1
+          },
+          {
+            "atributo": "ancho de lomo",
+            "operador": ">=",
+            "valor": "8",
+            "unidad": "cm",
+            "texto_fuente": "Ancho de lomo: mínimo 8 cm.",
+            "pagina": 1
+          },
+          {
+            "atributo": "material",
+            "operador": "=",
+            "valor": "cartón prensado forrado",
+            "unidad": null,
+            "texto_fuente": "Material: cartón prensado forrado.",
+            "pagina": 1
+          },
+          {
+            "atributo": "mecanismo",
+            "operador": "=",
+            "valor": "palanca metálica con anillos",
+            "unidad": null,
+            "texto_fuente": "Mecanismo: palanca metálica con anillos.",
+            "pagina": 1
+          }
+        ]
+      }
+    ],
+    "plazo_entrega": null,
+    "lugar_entrega": null,
+    "fecha_limite": null,
+    "anexos_solicitados": [],
+    "dudas": [
+      "La solicitud no indica plazo ni lugar de entrega: el proveedor los propone en las condiciones de compra del mismo formato."
+    ]
+  }
+}

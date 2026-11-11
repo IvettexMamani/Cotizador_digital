@@ -122,3 +122,27 @@ def test_subir_mi_catalogo_pide_el_archivo_antes_de_cruzar(app):
 
     app.radio(key="origen_catalogo").set_value("Catálogo de ejemplo").run()  # vuelve al de ejemplo
     assert any(h.value.startswith("5.") for h in app.header)
+
+
+@pytest.mark.lento
+def test_completa_la_solicitud_siga_del_paso_1(app):
+    selector = app.selectbox[0]
+    selector.select_index(selector.options.index("ejemplo_siga_escaneado.pdf")).run()
+    app.button[0].click().run(timeout=240)  # solicitud escaneada: OCR real
+    assert not app.exception
+    app.number_input(key="margen").set_value(20.0).run()
+    app.number_input(key="flete").set_value(50.0).run()
+    app.checkbox(key="confirmo_2_EJ-ARC-080_material").check().run()
+    assert not any(h.value.startswith("Formato de la entidad") for h in app.subheader)  # aún bloqueado
+
+    app.checkbox(key="responsable").check().run(timeout=240)  # habilita el formato (OCR del formato)
+    assert not app.exception
+    tabla = next(d.value for d in app.dataframe if "Campo del formato" in d.value.columns)
+    campos = tabla["Campo del formato"].tolist()
+    assert {"Ítem 1 · valor total", "Ítem 2 · valor total", "TOTAL"} <= set(campos)
+    assert "Plazo de entrega" in campos  # sin dato: queda en blanco
+
+    app.text_input(key="cond_plazo").set_value("10 días calendario").run()
+    tabla = next(d.value for d in app.dataframe if "Campo del formato" in d.value.columns)
+    plazo = tabla[tabla["Campo del formato"] == "Plazo de entrega"].iloc[0]
+    assert plazo["Se escribe"] == "10 días calendario"
