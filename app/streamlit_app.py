@@ -449,7 +449,6 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion,
     st.download_button("📄 Descargar cotización (PDF)", data=generar_pdf(cotizacion),
                        file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="pdf")
     st.caption("Revisa el PDF, fírmalo y preséntalo tú. La herramienta no firma ni envía nada.")
-    mostrar_formato_subido(cotizacion)
     return True
 
 
@@ -485,28 +484,6 @@ def mostrar_plan(plan) -> None:
                                    axis=1), hide_index=True, width="stretch")
     for falta in plan.no_ubicados:
         st.info(falta)
-
-
-def mostrar_formato_subido(cotizacion) -> None:
-    """Paso 6 (opción): la entidad mandó un formato aparte; se completa escribiendo encima del PDF original."""
-    with st.expander("¿La entidad te mandó su propio formato de cotización? Súbelo y lo completo",
-                     expanded=st.session_state.get("formato_subido") is not None):
-        archivo = st.file_uploader("Formato de la entidad (PDF o foto)", type=["pdf", "png", "jpg", "jpeg"],
-                                   key="formato_subido")
-        if archivo is None:
-            return
-        with st.spinner("Leyendo el formato (si es escaneado, con OCR)..."):
-            pdf_formato, paginas = leer_formato_entidad(archivo.name, archivo.getvalue())
-        plan = planificar(paginas, anchos_paginas(pdf_formato), cotizacion, pedir_condiciones())
-        if not plan.reconocido:
-            st.warning("No reconocí la tabla de precios de este formato (busco una columna «VALOR TOTAL», «PRECIO "
-                       "TOTAL» o «IMPORTE TOTAL» y la descripción de cada ítem). Presenta el PDF de la cotización.")
-            return
-        mostrar_plan(plan)
-        st.download_button("📝 Descargar el formato completado (PDF)", data=llenar(pdf_formato, plan),
-                           file_name=f"{Path(archivo.name).stem}_completado.pdf", mime="application/pdf",
-                           key="formato_pdf")
-        st.caption("Lo que escribió la app está en azul. Revísalo, fírmalo y preséntalo tú.")
 
 
 def mostrar_avance(contenedor, hechos: list[bool]) -> None:
