@@ -28,9 +28,11 @@ Lo que va entre corchetes **[así]** lo completas tú con datos de tus conversac
 
 ## B. Pitch oficial (3 minutos)
 
-### Problema (0:00 – 0:30) · unas 70 palabras
+### Problema (0:00 – 0:30) · unas 75 palabras
 
-> "Soy Ivette Mamani, contadora y administradora de contratos en el sector público, en Tacna. Cada día, las entidades piden cotizaciones a pequeños proveedores para sus compras menores. Para responder una, la mype tiene que leer las especificaciones, ver si su producto cumple, buscar la ficha técnica, calcular el precio y llenar anexos. Todo a mano. [Dato de tus conversaciones: por ejemplo, cuántas solicitudes quedan sin responder.] Y cada solicitud sin responder es una venta perdida."
+> "Soy Ivette Mamani, contadora y administradora de contratos en el sector público, en Tacna. Las entidades piden cotizaciones a pequeñas empresas, que responden a mano. Conversé con dos proveedores: llenar una cotización les toma hasta media hora; lo difícil es ganar. A una ferretería le pidieron un perno de una medida que no existe: ofreció la más cercana y perdió la orden. Y una imprenta vio bajar el precio de una agenda de 8 a 6 soles en cuatro años."
+
+*Fuente: [`docs/research/`](research/), conversación 1 (minuto 07:11) y conversación 2 (minuto 22:38).*
 
 ### Demo (0:30 – 2:30) · en vivo, unas 250 palabras
 
@@ -45,7 +47,7 @@ Usa la app publicada. Si falla, pon el video de respaldo (parte A).
 
 ### Negocio (2:30 – 3:00) · unas 70 palabras
 
-> "El modelo es por suscripción. El primer proveedor prueba gratis con 3 cotizaciones; luego el plan Básico cuesta 79 soles al mes y el Pro, 179. [Lo que incluye cada plan.] El costo de IA por cotización es de [costo medido con `python -m ai.costos`], y el OCR y los datos de precios no cuestan nada. [Frase de un entrevistado sobre cuánto pagaría.] Cotizador Digital: más cotizaciones respondidas, sin perder el control."
+> "El modelo es por suscripción. El primer proveedor prueba gratis con 3 cotizaciones; luego el plan Básico cuesta 79 soles al mes y el Pro, 179. [Lo que incluye cada plan.] El costo de IA por cotización es de [costo medido con `python -m ai.costos`], y el OCR y los datos de precios no cuestan nada. [Frase de un entrevistado sobre cuánto pagaría.] Cotizador Digital: cada requisito verificado y el precio comparado con lo que pagó el Estado, sin perder el control."
 
 ---
 
