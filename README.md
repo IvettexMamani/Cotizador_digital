@@ -51,9 +51,17 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 
 ## 5. Why now
 
-- **IA barata y con salida estructurada.** Un modelo económico como Claude Haiku 5.5 cuesta US$ 0,10 por millón de tokens de entrada y US$ 0,50 por millón de salida (tabla de precios de Anthropic, octubre de 2026), y devuelve JSON validado contra un esquema. El costo por cotización se mide con llamadas reales (parte 7).
-- **OCR abierto que corre sin tarjeta gráfica.** PaddleOCR lee una página escaneada en unos 6 segundos en una laptop común (medido en este proyecto).
-- **Datos abiertos de compras públicas.** Perú Compras publica las órdenes de compra de sus Catálogos Electrónicos como datos abiertos, con el PDF de cada orden, y el OECE gestiona los contratos menores en una herramienta digital ([gob.pe: Gestionar Contratos Menores](https://www.gob.pe/70088-gestionar-contratos-menores)).
+Hace tres años, a fines de 2023, esta herramienta no era viable para una mype. Tres cosas cambiaron:
+
+| | Fines de 2023 | Hoy (noviembre de 2026) |
+|---|---|---|
+| **Pasar de un documento a datos estructurados** | La API de Claude no tenía uso de herramientas (llegó a todos el 30/05/2024) ni salida estructurada: había que pedir el JSON en el prompt y arreglar a mano lo que saliera mal. | **Salida estructurada** con esquema garantizado: beta desde el 14/11/2025 y para todos desde el 29/01/2026. `messages.parse()` devuelve un objeto Pydantic válido, con la cita y la página de cada requisito. |
+| **Costo de la IA** | Sin salida estructurada, cada respuesta de la IA había que revisarla y corregirla a mano: el tiempo que se quería ahorrar se volvía a gastar. | **Claude Haiku 5.5** (lanzado el 07/10/2026) cuesta US$ 0,10 por millón de tokens de entrada y US$ 0,50 de salida: **la décima parte** de lo que cuesta Claude Haiku 4.5 (US$ 1 y US$ 5), lanzado apenas en octubre de 2025. |
+| **Precios de referencia del Estado** | Perú Compras ya publicaba sus órdenes de compra (diccionario de datos de 2018, estándar OCDS desde 2020), pero el precio de cada producto está en un PDF escaneado: compararlos a mano no escala. | El OCR combinado con reglas que verifican los montos convierte esos PDF en precios por producto (95 precios de 18 órdenes en este proyecto, ver [Datos y fuentes](#datos-y-fuentes)). |
+
+El OCR abierto ya existía en 2023 (PaddleOCR 2.7, septiembre de 2023). Lo nuevo es combinarlo con un modelo de lenguaje barato y con salida garantizada: la versión 3 de PaddleOCR (mayo de 2025), cuyos modelos PP-OCRv5 usa la app, lee una página escaneada en unos 6 segundos en una laptop sin tarjeta gráfica (medido en este proyecto). Además, el OECE gestiona hoy los contratos menores en una herramienta digital ([gob.pe: Gestionar Contratos Menores](https://www.gob.pe/70088-gestionar-contratos-menores)).
+
+*Fuentes: [notas de versión de la API de Claude](https://platform.claude.com/docs/en/release-notes/overview), [precios de Claude](https://platform.claude.com/docs/en/about-claude/pricing), [historial de PaddleOCR en PyPI](https://pypi.org/project/paddleocr/#history) y el [diccionario de datos de Perú Compras](https://saeusceprod01.blob.core.windows.net/contproveedor/Documentos/Publico/Diccionario_de_Datos_Abiertos.pdf). Consultadas el 10/11/2026.*
 
 ## 6. Demo
 
@@ -114,6 +122,8 @@ flowchart LR
 
 ## 7. Modelo de negocio
 
+**Quién paga:** la **mype proveedora del Estado**, con una suscripción mensual. La entidad pública no paga ni usa la herramienta: recibe la cotización firmada por el proveedor, como hoy.
+
 | Plan | Precio | Qué incluye |
 |---|---|---|
 | **Primer proveedor gratis** | S/ 0 | 3 cotizaciones |
@@ -154,10 +164,11 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 89 pruebas, la solicitud y el catálogo de ejemplo (sintéticos y marcados como tales), los archivos de despliegue y esta documentación.
-- **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida) y el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar.
+- **Generó** todo el código, las 89 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
+- **Funciones que agregó después del plan inicial, a pedido de Ivette:** verificación de un bien fuera del catálogo con la foto de su etiqueta, subida del catálogo propio (CSV o Excel, con plantilla), una tabla de requisitos por ítem y la barra lateral con el avance del usuario.
+- **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida), el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar, que la exportación de datos abiertos de Perú Compras no traía el precio por producto (se leyeron los PDF de las órdenes con OCR, con autorización de Ivette y las reglas de scraping responsable) y un error de redondeo que dejaba el precio sugerido bajo el costo.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
-- **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue y qué entra o no en la demo.
+- **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue, qué entra o no en la demo y las funciones que se agregaron después (foto de producto, catálogo propio, tabla por ítem y barra de avance).
 
 ---
 
