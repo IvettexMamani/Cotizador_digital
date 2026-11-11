@@ -43,7 +43,7 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 | 3. Extraer | Entidad, objeto, ítems, requisitos técnicos (atributo, operador, valor, unidad), plazo, lugar, fecha límite y anexos, **con la cita y la página de cada requisito** | LLM con salida estructurada + Pydantic |
 | 4. Cruzar | Cada requisito contra el catálogo del proveedor, **que puede subir su propio catálogo** (CSV o Excel, con plantilla descargable): ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo. **Si el bien no está en el catálogo**, el proveedor sube la foto de su etiqueta: el OCR lee lo impreso y se verifica igual, y lo que no se lee queda en rojo | pandas, PaddleOCR |
 | 5. Precio | Costo + flete + margen, comparado con lo que pagó el Estado: mínimo, mediana, máximo y número de órdenes, precio sugerido y semáforo | plotly |
-| 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se genera el PDF: carta, cuadro de precios y matriz de cumplimiento. **Si la entidad pide su propio formato** (por ejemplo, la solicitud de cotización del SIGA, que se responde en el mismo documento), la app escribe encima del PDF original el valor total de cada ítem, el TOTAL y las condiciones de compra; lo que no sabe queda en blanco | fpdf2, pypdf, PaddleOCR |
+| 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se genera el PDF: carta, cuadro de precios y matriz de cumplimiento. **Si la solicitud trae su propio formato de respuesta** (como la solicitud de cotización del SIGA), **la cotización se descarga en ese mismo documento**: la app escribe encima del PDF original el valor total de cada ítem, el TOTAL y las condiciones de compra, y lo que no sabe queda en blanco. La carta y la matriz quedan como descarga adicional. Si la entidad mandó un formato aparte, se puede subir | fpdf2, pypdf, PaddleOCR |
 
 **Insight:** el cuello de botella no es la falta de producto, sino el **trabajo de verificación**: leer, contrastar y documentar. Por eso la herramienta no "decide" por el proveedor. Hace el trabajo pesado y muestra la fuente de cada dato. Lo que no tiene fuente queda en rojo, y la responsabilidad final (revisar y firmar) sigue siendo del proveedor.
 
@@ -87,7 +87,7 @@ La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado
 
 ![Subir el catálogo propio](docs/capturas/06_subir_catalogo.png)
 
-**El formato de la entidad, completado:** con una solicitud con formato del SIGA (EJEMPLO SINTÉTICO, escaneada), la app muestra qué escribirá y de dónde sale cada dato, y devuelve el mismo PDF con los valores en azul. Garantía y tipo de cambio quedan en blanco porque el proveedor no los indicó.
+**La cotización en el formato de la solicitud:** con una solicitud con formato del SIGA (EJEMPLO SINTÉTICO, escaneada), "Descargar cotización" entrega esa misma solicitud completada. Antes, la app muestra qué escribirá y de dónde sale cada dato; los valores van en azul. Garantía y tipo de cambio quedan en blanco porque el proveedor no los indicó.
 
 | Vista previa en la app | Formato completado |
 |---|---|

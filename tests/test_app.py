@@ -70,6 +70,8 @@ def test_pdf_bloqueado_hasta_ingresar_precio_y_confirmar(app):
     assert not app.exception
     assert not any("El PDF todavía no se puede generar" in e.value for e in app.error)
     assert any("Todo revisado" in s.value for s in app.success)
+    # Solicitud sin formato de respuesta: se descarga el PDF propio de la app, no un formato
+    assert not any("Campo del formato" in d.value.columns for d in app.dataframe)
 
 
 @pytest.mark.lento
@@ -133,10 +135,11 @@ def test_completa_la_solicitud_siga_del_paso_1(app):
     app.number_input(key="margen").set_value(20.0).run()
     app.number_input(key="flete").set_value(50.0).run()
     app.checkbox(key="confirmo_2_EJ-ARC-080_material").check().run()
-    assert not any(h.value.startswith("Formato de la entidad") for h in app.subheader)  # aún bloqueado
+    assert not any("Campo del formato" in d.value.columns for d in app.dataframe)  # aún bloqueado
 
-    app.checkbox(key="responsable").check().run(timeout=240)  # habilita el formato (OCR del formato)
+    app.checkbox(key="responsable").check().run(timeout=240)  # habilita la descarga (OCR del formato)
     assert not app.exception
+    assert any("trae su propio formato de respuesta" in m.value for m in app.markdown)
     tabla = next(d.value for d in app.dataframe if "Campo del formato" in d.value.columns)
     campos = tabla["Campo del formato"].tolist()
     assert {"Ítem 1 · valor total", "Ítem 2 · valor total", "TOTAL"} <= set(campos)

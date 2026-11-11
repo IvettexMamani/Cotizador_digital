@@ -7,6 +7,7 @@ Ejecutar desde la raíz del repo:
     streamlit run app/streamlit_app.py
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -55,7 +56,7 @@ load_dotenv(RAIZ / ".env")  # antes de importar el extractor: define la clave y 
 from ai.extractor import MODELO, ErrorExtraccion, extraer_requisitos, hay_clave, huella  # noqa: E402
 from backend.catalogo import (EXTENSIONES_CATALOGO, ErrorCatalogo, cargar_catalogo,  # noqa: E402
                               leer_catalogo_subido, plantilla_excel, ruta_catalogo)
-from backend.cruce import CUMPLE, NO_CUMPLE, ORDEN_ESTADO, REVISAR, cruzar  # noqa: E402
+from backend.cruce import CUMPLE, NO_CUMPLE, ORDEN_ESTADO, REVISAR, cruzar, normalizar  # noqa: E402
 from backend.ejemplo_sintetico import FOTO_PRODUCTO as FOTO_EJEMPLO  # noqa: E402
 from backend.formato_entidad import CondicionesOferta, anchos_paginas, leer_formato, llenar, planificar  # noqa: E402
 from backend.foto_producto import evaluar_foto, tiene_texto  # noqa: E402
@@ -424,47 +425,54 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion,
     st.success(f"Todo revisado. Total de la cotización: **S/ {total:,.2f}**"
                + (f" (incluye IGV de S/ {cotizacion.igv:,.2f})" if aplicar_igv else " (sin IGV)") + ".")
     nombre_pdf = "cotizacion_" + "".join(c if c.isalnum() else "_" for c in (solicitud.numero_solicitud or "solicitud"))
+    nombre_doc, contenido_doc, texto_doc = documento
+
+    # Si la solicitud trae su propio formato de respuesta (como la del SIGA), la cotización sale en ese formato
+    if contenido_doc is not None and parece_formato_de_respuesta(texto_doc):
+        with st.spinner("Preparando la cotización en el formato de la solicitud..."):
+            pdf_formato, paginas = leer_formato_entidad(nombre_doc, contenido_doc)
+        anchos = anchos_paginas(pdf_formato)
+        if planificar(paginas, anchos, cotizacion, CondicionesOferta()).reconocido:
+            st.markdown("**Tu solicitud trae su propio formato de respuesta** (como la del SIGA): la cotización se "
+                        "descarga en ese mismo documento, completado con los datos verificados.")
+            plan = planificar(paginas, anchos, cotizacion, pedir_condiciones())
+            mostrar_plan(plan)
+            st.download_button("📄 Descargar cotización (formato de la solicitud)", data=llenar(pdf_formato, plan),
+                               file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="formato_pdf")
+            st.download_button("Descargar también la carta y la matriz de cumplimiento (PDF)",
+                               data=generar_pdf(cotizacion), file_name=f"{nombre_pdf}_carta_y_matriz.pdf",
+                               mime="application/pdf", key="pdf")
+            st.caption("Lo que escribió la app está en azul. Revísalo, fírmalo y preséntalo tú. "
+                       "La herramienta no firma ni envía nada.")
+            return True
+
     st.download_button("📄 Descargar cotización (PDF)", data=generar_pdf(cotizacion),
                        file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="pdf")
     st.caption("Revisa el PDF, fírmalo y preséntalo tú. La herramienta no firma ni envía nada.")
-    mostrar_formato_entidad(cotizacion, documento)
+    mostrar_formato_subido(cotizacion)
     return True
 
 
-def mostrar_formato_entidad(cotizacion, documento) -> None:
-    """Paso 6 (opción): completar el formato de la entidad, escribiendo encima del PDF original."""
-    st.subheader("Formato de la entidad (opcional)")
-    st.caption("Si la entidad pide responder en su propio formato (por ejemplo, la solicitud de cotización del "
-               "SIGA, que se llena en el mismo documento), la app escribe encima del PDF original los datos ya "
-               "verificados. Lo que no sabe queda en blanco y la firma nunca se llena.")
-    nombre_doc, contenido_doc = documento
-    opciones = (["Completar la solicitud del paso 1"] if contenido_doc is not None else []) +         ["Subir el formato de la entidad"]
-    origen = st.radio("¿Qué formato completo?", opciones, horizontal=True, key="origen_formato")
-    if origen == "Subir el formato de la entidad":
-        archivo = st.file_uploader("Formato de la entidad (PDF o foto)", type=["pdf", "png", "jpg", "jpeg"],
-                                   key="formato_subido")
-        if archivo is None:
-            return
-        nombre, contenido = archivo.name, archivo.getvalue()
-    else:
-        nombre, contenido = nombre_doc, contenido_doc
+def parece_formato_de_respuesta(texto: str) -> bool:
+    """La solicitud tiene una columna para que el proveedor escriba sus precios (p. ej., VALOR TOTAL del SIGA)."""
+    texto = normalizar(texto or "")
+    return bool(re.search(r"\b(valor|precio|importe|monto)\b", texto) and re.search(r"\btotal\b", texto))
 
-    with st.expander("Condiciones de tu oferta (las que pida el formato)", expanded=True):
-        st.caption("Escribe solo lo que ofreces. Lo que dejes vacío queda en blanco en el formato.")
-        c1, c2 = st.columns(2)
-        condiciones = CondicionesOferta(
-            forma_pago=c1.text_input("Forma de pago", key="cond_pago", placeholder="Ej.: a la conformidad"),
-            garantia=c2.text_input("Garantía", key="cond_garantia"),
-            plazo_entrega=c1.text_input("Plazo de entrega", key="cond_plazo", placeholder="Ej.: 10 días calendario"),
-            validez=c2.text_input("Validez de la cotización", key="cond_validez", placeholder="Ej.: 30 días"),
-        )
-    with st.spinner("Leyendo el formato (si es escaneado, con OCR)..."):
-        pdf_formato, paginas = leer_formato_entidad(nombre, contenido)
-    plan = planificar(paginas, anchos_paginas(pdf_formato), cotizacion, condiciones)
-    if not plan.reconocido:
-        st.warning("No reconocí la tabla de precios de este formato (busco una columna «VALOR TOTAL», «PRECIO "
-                   "TOTAL» o «IMPORTE TOTAL» y la descripción de cada ítem). Presenta el PDF de la cotización.")
-        return
+
+def pedir_condiciones() -> CondicionesOferta:
+    st.markdown("**Condiciones de tu oferta** (las que pida el formato)")
+    st.caption("Escribe solo lo que ofreces. Lo que dejes vacío queda en blanco en el formato.")
+    c1, c2 = st.columns(2)
+    return CondicionesOferta(
+        forma_pago=c1.text_input("Forma de pago", key="cond_pago", placeholder="Ej.: a la conformidad"),
+        garantia=c2.text_input("Garantía", key="cond_garantia"),
+        plazo_entrega=c1.text_input("Plazo de entrega", key="cond_plazo", placeholder="Ej.: 10 días calendario"),
+        validez=c2.text_input("Validez de la cotización", key="cond_validez", placeholder="Ej.: 30 días"),
+    )
+
+
+def mostrar_plan(plan) -> None:
+    """Vista previa: qué se escribirá en el formato y de dónde sale; lo que queda en blanco, en rojo."""
     for aviso in plan.avisos:
         st.warning(aviso)
     filas = [{"Campo del formato": e.campo, "Se escribe": e.texto, "De dónde sale": e.fuente}
@@ -477,9 +485,28 @@ def mostrar_formato_entidad(cotizacion, documento) -> None:
                                    axis=1), hide_index=True, width="stretch")
     for falta in plan.no_ubicados:
         st.info(falta)
-    st.download_button("📝 Descargar el formato completado (PDF)", data=llenar(pdf_formato, plan),
-                       file_name=f"{Path(nombre).stem}_completado.pdf", mime="application/pdf", key="formato_pdf")
-    st.caption("Lo que escribió la app está en azul. Revísalo, fírmalo y preséntalo tú.")
+
+
+def mostrar_formato_subido(cotizacion) -> None:
+    """Paso 6 (opción): la entidad mandó un formato aparte; se completa escribiendo encima del PDF original."""
+    with st.expander("¿La entidad te mandó su propio formato de cotización? Súbelo y lo completo",
+                     expanded=st.session_state.get("formato_subido") is not None):
+        archivo = st.file_uploader("Formato de la entidad (PDF o foto)", type=["pdf", "png", "jpg", "jpeg"],
+                                   key="formato_subido")
+        if archivo is None:
+            return
+        with st.spinner("Leyendo el formato (si es escaneado, con OCR)..."):
+            pdf_formato, paginas = leer_formato_entidad(archivo.name, archivo.getvalue())
+        plan = planificar(paginas, anchos_paginas(pdf_formato), cotizacion, pedir_condiciones())
+        if not plan.reconocido:
+            st.warning("No reconocí la tabla de precios de este formato (busco una columna «VALOR TOTAL», «PRECIO "
+                       "TOTAL» o «IMPORTE TOTAL» y la descripción de cada ítem). Presenta el PDF de la cotización.")
+            return
+        mostrar_plan(plan)
+        st.download_button("📝 Descargar el formato completado (PDF)", data=llenar(pdf_formato, plan),
+                           file_name=f"{Path(archivo.name).stem}_completado.pdf", mime="application/pdf",
+                           key="formato_pdf")
+        st.caption("Lo que escribió la app está en azul. Revísalo, fírmalo y preséntalo tú.")
 
 
 def mostrar_avance(contenedor, hechos: list[bool]) -> None:
@@ -662,7 +689,8 @@ if resultado is not None:
     seleccion = mostrar_cruce(solicitud)
     if seleccion:
         precios, aplicar_igv = mostrar_precio(seleccion)
-        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado, (nombre, contenido))
+        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado,
+                                         (nombre, contenido, lectura.texto if lectura else ""))
 
 mostrar_avance(avance, [
     contenido is not None,
