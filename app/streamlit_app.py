@@ -75,8 +75,9 @@ CARPETA_SOLICITUDES = RAIZ / "data" / "solicitudes"
 
 ONE_LINER = (
     "Preparamos cotizaciones listas para firmar para mypes proveedoras del "
-    "Estado peruano, mediante IA que lee la solicitud de cotización y la cruza "
-    "con su catálogo de productos."
+    "Estado peruano, mediante IA que lee los términos de referencia, verifica cada "
+    "requisito contra el catálogo del proveedor, con la fuente de cada dato, y compara "
+    "el precio con lo que pagó el Estado."
 )
 
 PASOS = ["Términos de referencia", "Leer documento", "Extraer requisitos", "Cruce con catálogo",

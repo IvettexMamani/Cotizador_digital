@@ -6,7 +6,7 @@ Contexto esencial para cualquier sesión de Claude Code en este repo. El encargo
 
 - **Founder:** Ivette Mamani Flores, contadora pública y administradora de contratos en el sector público (Tacna). Trabaja sola. Claude actúa como co-founder técnico.
 - **Contexto:** proyecto final de la Diplomatura en Ciencia de Datos (Q-Lab PUCP). Se necesita una **demo que funcione en vivo**, de principio a fin, con datos reales, construida en **un solo día**.
-- **One-liner (borrador):** Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee la solicitud de cotización y la cruza con su catálogo de productos.
+- **One-liner (borrador):** Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee los términos de referencia, verifica cada requisito contra el catálogo del proveedor, con la fuente de cada dato, y compara el precio con lo que pagó el Estado.
 - **Problema:** las áreas de logística envían solicitudes de cotización (contratos menores, hasta 8 UIT). El proveedor responde a mano (Word/Excel): leer TDR, ver si cumple, buscar ficha técnica, calcular precio, llenar anexos. Muchas quedan sin responder (supuesto del encargo). **Las 2 conversaciones del 2026-11-11 no lo respaldan:** cotizar les toma 10–30 min; pierden órdenes por precio o por una especificación que no coincide. Ver `docs/research/` y el insight del README.
 
 ## Regla de oro (no negociable)

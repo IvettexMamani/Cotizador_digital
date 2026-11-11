@@ -1,8 +1,8 @@
 # Cotizador Digital
 
-> **Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee la solicitud de cotización y la cruza con su catálogo de productos.**
+> **Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee los términos de referencia, verifica cada requisito contra el catálogo del proveedor, con la fuente de cada dato, y compara el precio con lo que pagó el Estado.**
 
-Proyecto final de la Diplomatura en Ciencia de Datos (Q-Lab PUCP). Demo de un solo flujo, para bienes: de la solicitud de cotización al PDF listo para firmar.
+Proyecto final de la Diplomatura en Ciencia de Datos (Q-Lab PUCP). Demo de un solo flujo, para bienes: de los términos de referencia a la cotización lista para firmar.
 
 **Regla de oro:** ningún dato técnico entra a la cotización sin una fuente. Lo que no está verificado se marca en rojo y el PDF no se genera hasta que el proveedor lo revise y confirme. **La herramienta nunca firma ni envía nada.**
 
@@ -10,7 +10,7 @@ Proyecto final de la Diplomatura en Ciencia de Datos (Q-Lab PUCP). Demo de un so
 
 ## 1. One-liner
 
-Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee la solicitud de cotización y la cruza con su catálogo de productos.
+Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee los términos de referencia, verifica cada requisito contra el catálogo del proveedor, con la fuente de cada dato, y compara el precio con lo que pagó el Estado.
 
 ## 2. Founder
 

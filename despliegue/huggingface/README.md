@@ -12,7 +12,7 @@ short_description: Cotizaciones listas para firmar para mypes proveedoras
 
 # Cotizador Digital
 
-Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee la solicitud de cotización y la cruza con su catálogo de productos.
+Preparamos cotizaciones listas para firmar para mypes proveedoras del Estado peruano, mediante IA que lee los términos de referencia, verifica cada requisito contra el catálogo del proveedor, con la fuente de cada dato, y compara el precio con lo que pagó el Estado.
 
 Proyecto final de la Diplomatura en Ciencia de Datos (Q-Lab PUCP). Código fuente: https://github.com/IvettexMamani/Cotizador_digital
 
