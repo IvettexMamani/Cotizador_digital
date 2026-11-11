@@ -29,7 +29,7 @@ from PIL import Image, ImageOps
 from pypdf import PdfReader, PdfWriter
 
 from backend.cruce import normalizar
-from backend.pdf import IGV, Cotizacion, _t
+from backend.pdf import IGV, CondicionesOferta, Cotizacion, _t  # noqa: F401 (CondicionesOferta se reexporta)
 
 DPI_OCR = 200
 MIN_CARACTERES_TEXTO = 40  # menos texto que esto en una página: está escaneada
@@ -89,15 +89,6 @@ class Escritura:
     ancho_max: float
     campo: str
     fuente: str
-
-
-@dataclass
-class CondicionesOferta:
-    """Condiciones comerciales que escribe el proveedor (sin valores por defecto)."""
-    forma_pago: str = ""
-    garantia: str = ""
-    plazo_entrega: str = ""
-    validez: str = ""
 
 
 @dataclass
@@ -251,8 +242,7 @@ def planificar(paginas: list[list[Fragmento]], anchos: list[float], cotizacion: 
             if linea.evaluacion is None or not linea.precio_unitario:
                 plan.en_blanco.append(f"{campo} (el ítem no se cotiza)")
                 continue
-            total = round(round(linea.precio_unitario, 2) * linea.item.cantidad * (1 + IGV if cotizacion.aplicar_igv
-                                                                                    else 1), 2)
+            total = cotizacion.valor_total(linea)
             totales_escritos.append(total)
             plan.escrituras.append(Escritura(
                 n_pagina, columna.cx, fila.cy, f"{total:,.2f}", "centro", columna.x1 - columna.x0 + 30,
@@ -269,7 +259,7 @@ def planificar(paginas: list[list[Fragmento]], anchos: list[float], cotizacion: 
             plan.escrituras.append(Escritura(
                 n_pagina, columna.cx, etiqueta.cy, f"{suma:,.2f}", "centro",
                 columna.x1 - columna.x0 + 30, "TOTAL", f"Suma de los valores totales{base}"))
-            total_carta = round(cotizacion.subtotal + cotizacion.igv, 2)
+            total_carta = cotizacion.total
             if len(totales_escritos) == len(cotizacion.cotizadas) and abs(suma - total_carta) >= 0.01:
                 plan.avisos.append(f"Por redondeo, el TOTAL del formato (S/ {suma:,.2f}) difiere del total de "
                                    f"la carta (S/ {total_carta:,.2f}): revisa cuál presentas.")

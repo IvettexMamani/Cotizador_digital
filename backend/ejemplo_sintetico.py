@@ -209,7 +209,7 @@ def generar_foto_producto(destino: Path = FOTO_PRODUCTO) -> Path:
 
 # ---------------------------------------------------------------- solicitud con formato del SIGA
 
-SIGA_ESCANEADO = CARPETA / "ejemplo_siga_escaneado.pdf"
+SIGA_ESCANEADO = CARPETA.parent / "formatos" / "ejemplo_siga_escaneado.pdf"
 
 # Diseño inspirado en la "Solicitud de cotización" que imprime el SIGA del MEF: el proveedor
 # responde en el mismo documento (VALOR TOTAL por ítem, TOTAL y condiciones de compra).
@@ -316,6 +316,7 @@ def generar_siga_escaneado(destino: Path = SIGA_ESCANEADO) -> Path:
     pdf.set_creation_date(FECHA_FIJA)
     pdf.add_page()
     pdf.image(imagen, x=0, y=0, w=pdf.w, h=pdf.h)
+    destino.parent.mkdir(parents=True, exist_ok=True)
     pdf.output(str(destino))
     return destino
 

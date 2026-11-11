@@ -7,7 +7,6 @@ Ejecutar desde la raíz del repo:
     streamlit run app/streamlit_app.py
 """
 
-import re
 import sys
 from pathlib import Path
 
@@ -56,13 +55,14 @@ load_dotenv(RAIZ / ".env")  # antes de importar el extractor: define la clave y 
 from ai.extractor import MODELO, ErrorExtraccion, extraer_requisitos, hay_clave, huella  # noqa: E402
 from backend.catalogo import (EXTENSIONES_CATALOGO, ErrorCatalogo, cargar_catalogo,  # noqa: E402
                               leer_catalogo_subido, plantilla_excel, ruta_catalogo)
-from backend.cruce import CUMPLE, NO_CUMPLE, ORDEN_ESTADO, REVISAR, cruzar, normalizar  # noqa: E402
+from backend.cruce import CUMPLE, NO_CUMPLE, ORDEN_ESTADO, REVISAR, cruzar  # noqa: E402
 from backend.ejemplo_sintetico import FOTO_PRODUCTO as FOTO_EJEMPLO  # noqa: E402
-from backend.formato_entidad import CondicionesOferta, anchos_paginas, leer_formato, llenar, planificar  # noqa: E402
+from backend.ejemplo_sintetico import SIGA_ESCANEADO as SIGA_EJEMPLO  # noqa: E402
+from backend.formato_entidad import anchos_paginas, leer_formato, llenar, planificar  # noqa: E402
 from backend.foto_producto import evaluar_foto, tiene_texto  # noqa: E402
 from backend.grafico_precio import grafico_precio  # noqa: E402
 from backend.lectura import EXTENSIONES_ADMITIDAS, leer_documento  # noqa: E402
-from backend.pdf import (Cotizacion, DatosProveedor, LineaCotizacion, generar_pdf,  # noqa: E402
+from backend.pdf import (CondicionesOferta, Cotizacion, DatosProveedor, LineaCotizacion, generar_pdf,  # noqa: E402
                          pendientes, por_confirmar)
 from backend.precio import (IGV, con_igv, piso_unitario, precio_con_margen, precio_sugerido,  # noqa: E402
                             referencia_estado, repartir_flete, semaforo)
@@ -79,7 +79,7 @@ ONE_LINER = (
     "con su catálogo de productos."
 )
 
-PASOS = ["Elegir solicitud", "Leer documento", "Extraer requisitos", "Cruce con catálogo",
+PASOS = ["Términos de referencia", "Leer documento", "Extraer requisitos", "Cruce con catálogo",
          "Fijar precio", "Confirmar y PDF"]
 SEMAFORO = {"verde": (st.success, "🟢 Verde"), "amarillo": (st.warning, "🟡 Amarillo"),
             "rojo": (st.error, "🔴 Rojo"), "gris": (st.info, "⚪ Sin referencia")}
@@ -369,7 +369,7 @@ def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
     return precios, aplicar_igv
 
 
-def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion, documento) -> bool:
+def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion) -> bool:
     """Paso 6: resumen, confirmación de lo que está en rojo y PDF. Devuelve True si el PDF está listo."""
     st.header("6. Confirmación y PDF")
     with st.expander("Datos de tu empresa para el PDF (opcional: no se guardan)"):
@@ -383,6 +383,7 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion,
             representante=c2.text_input("Representante legal", key="representante"),
         )
 
+    condiciones = pedir_condiciones()
     lineas = [LineaCotizacion(r.item, e, precios.get(r.item.numero)) for r, e in seleccion]
     confirmados = set()
     for linea in lineas:
@@ -407,7 +408,8 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion,
 
     responsable = st.checkbox("**Revisé y me hago responsable** de la información de esta cotización.",
                               key="responsable")
-    cotizacion = Cotizacion(solicitud, lineas, proveedor, aplicar_igv, confirmados, responsable)
+    cotizacion = Cotizacion(solicitud, lineas, proveedor, aplicar_igv, confirmados, responsable,
+                            condiciones=condiciones)
 
     if extraccion.modo == "ia" and extraccion.uso and extraccion.uso.costo_usd is not None:
         st.caption(f"Costo de IA de esta cotización: US$ {extraccion.uso.costo_usd:.4f} "
@@ -421,46 +423,59 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion,
         st.button("📄 Descargar cotización (PDF)", disabled=True, key="pdf_bloqueado")
         return False
 
-    total = cotizacion.subtotal + cotizacion.igv
+    total = cotizacion.total
     st.success(f"Todo revisado. Total de la cotización: **S/ {total:,.2f}**"
                + (f" (incluye IGV de S/ {cotizacion.igv:,.2f})" if aplicar_igv else " (sin IGV)") + ".")
     nombre_pdf = "cotizacion_" + "".join(c if c.isalnum() else "_" for c in (solicitud.numero_solicitud or "solicitud"))
-    nombre_doc, contenido_doc, texto_doc = documento
+    nombre_siga, contenido_siga = pedir_solicitud_siga()
 
-    # Si la solicitud trae su propio formato de respuesta (como la del SIGA), la cotización sale en ese formato
-    if contenido_doc is not None and parece_formato_de_respuesta(texto_doc):
-        with st.spinner("Preparando la cotización en el formato de la solicitud..."):
-            pdf_formato, paginas = leer_formato_entidad(nombre_doc, contenido_doc)
-        anchos = anchos_paginas(pdf_formato)
-        if planificar(paginas, anchos, cotizacion, CondicionesOferta()).reconocido:
-            st.markdown("**Tu solicitud trae su propio formato de respuesta** (como la del SIGA): la cotización se "
-                        "descarga en ese mismo documento, completado con los datos verificados.")
-            plan = planificar(paginas, anchos, cotizacion, pedir_condiciones())
+    # Si el proveedor agregó la solicitud SIGA que le envió la entidad, la cotización se entrega en ese documento
+    if contenido_siga is not None:
+        with st.spinner("Preparando la cotización en la solicitud SIGA (si es escaneada, con OCR)..."):
+            pdf_formato, paginas = leer_formato_entidad(nombre_siga, contenido_siga)
+        plan = planificar(paginas, anchos_paginas(pdf_formato), cotizacion, condiciones)
+        if plan.reconocido:
+            st.markdown("**La cotización se entrega en la solicitud SIGA que agregaste**, completada con los datos "
+                        "verificados:")
             mostrar_plan(plan)
-            st.download_button("📄 Descargar cotización (formato de la solicitud)", data=llenar(pdf_formato, plan),
+            st.download_button("📄 Descargar cotización (solicitud SIGA completada)", data=llenar(pdf_formato, plan),
                                file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="formato_pdf")
-            st.download_button("Descargar también la carta y la matriz de cumplimiento (PDF)",
-                               data=generar_pdf(cotizacion), file_name=f"{nombre_pdf}_carta_y_matriz.pdf",
+            st.download_button("Descargar también la cotización con la matriz de cumplimiento (PDF)",
+                               data=generar_pdf(cotizacion), file_name=f"{nombre_pdf}_con_matriz.pdf",
                                mime="application/pdf", key="pdf")
             st.caption("Lo que escribió la app está en azul. Revísalo, fírmalo y preséntalo tú. "
                        "La herramienta no firma ni envía nada.")
             return True
+        st.warning("No reconocí la tabla de precios de la solicitud SIGA que agregaste (busco la columna «VALOR "
+                   "TOTAL» y la descripción de cada ítem). Se entrega la cotización de la app, con la misma estructura.")
 
     st.download_button("📄 Descargar cotización (PDF)", data=generar_pdf(cotizacion),
                        file_name=f"{nombre_pdf}.pdf", mime="application/pdf", type="primary", key="pdf")
-    st.caption("Revisa el PDF, fírmalo y preséntalo tú. La herramienta no firma ni envía nada.")
+    st.caption("Cotización con la estructura de la solicitud del SIGA y la matriz de cumplimiento. "
+               "Revísala, fírmala y preséntala tú. La herramienta no firma ni envía nada.")
     return True
 
 
-def parece_formato_de_respuesta(texto: str) -> bool:
-    """La solicitud tiene una columna para que el proveedor escriba sus precios (p. ej., VALOR TOTAL del SIGA)."""
-    texto = normalizar(texto or "")
-    return bool(re.search(r"\b(valor|precio|importe|monto)\b", texto) and re.search(r"\btotal\b", texto))
+def pedir_solicitud_siga() -> tuple[str | None, bytes | None]:
+    """Paso 6 (opcional): la solicitud de cotización del SIGA que envió la entidad."""
+    st.markdown("**Solicitud de cotización del SIGA** (opcional)")
+    st.caption("Si la entidad te envió su solicitud de cotización del SIGA, agrégala: la cotización se entregará en "
+               "ese mismo documento, completado. Si no, descarga la cotización de la app, que tiene la misma "
+               "estructura.")
+    archivo = st.file_uploader("Solicitud de cotización del SIGA (PDF o foto)", type=["pdf", "png", "jpg", "jpeg"],
+                               key="siga_subida")
+    if archivo is not None:
+        return archivo.name, archivo.getvalue()
+    if SIGA_EJEMPLO.exists() and st.checkbox("Usar la solicitud SIGA de ejemplo (EJEMPLO SINTÉTICO)",
+                                             key="siga_ejemplo"):
+        return SIGA_EJEMPLO.name, SIGA_EJEMPLO.read_bytes()
+    return None, None
 
 
 def pedir_condiciones() -> CondicionesOferta:
-    st.markdown("**Condiciones de tu oferta** (las que pida el formato)")
-    st.caption("Escribe solo lo que ofreces. Lo que dejes vacío queda en blanco en el formato.")
+    st.markdown("**Condiciones de tu oferta**")
+    st.caption("Van en las «Condiciones de compra» de la cotización. Escribe solo lo que ofreces: "
+               "lo que dejes vacío queda en blanco.")
     c1, c2 = st.columns(2)
     return CondicionesOferta(
         forma_pago=c1.text_input("Forma de pago", key="cond_pago", placeholder="Ej.: a la conformidad"),
@@ -533,20 +548,20 @@ st.error(
 
 # ---------------------------------------------------------------- 1. subir solicitud
 
-st.header("1. Solicitud de cotización")
-origen = st.radio("¿Qué solicitud quieres cotizar?", ["Usar una de ejemplo", "Subir mi archivo"],
+st.header("1. Términos de referencia")
+origen = st.radio("¿Qué términos de referencia quieres cotizar?", ["Usar una de ejemplo", "Subir mi archivo"],
                   horizontal=True)
 
 nombre, contenido = None, None
 if origen == "Usar una de ejemplo":
     ejemplos = {p.name: p for p in ejemplos_disponibles()}
     if ejemplos:
-        nombre = st.selectbox("Solicitud de ejemplo", list(ejemplos))
+        nombre = st.selectbox("Términos de referencia de ejemplo", list(ejemplos))
         contenido = ejemplos[nombre].read_bytes()
     else:
         st.info("No hay solicitudes en data/solicitudes/.")
 else:
-    archivo = st.file_uploader("PDF digital, PDF escaneado o foto",
+    archivo = st.file_uploader("Términos de referencia (TDR): PDF digital, PDF escaneado o foto",
                                type=[e.lstrip(".") for e in sorted(EXTENSIONES_ADMITIDAS)])
     if archivo is not None:
         nombre, contenido = archivo.name, archivo.getvalue()
@@ -666,8 +681,7 @@ if resultado is not None:
     seleccion = mostrar_cruce(solicitud)
     if seleccion:
         precios, aplicar_igv = mostrar_precio(seleccion)
-        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado,
-                                         (nombre, contenido, lectura.texto if lectura else ""))
+        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado)
 
 mostrar_avance(avance, [
     contenido is not None,

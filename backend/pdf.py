@@ -1,7 +1,11 @@
 """Paso 6 del flujo: PDF de la cotización, listo para imprimir y firmar.
 
-Contenido: carta de presentación con el cuadro de precios, condiciones de la
-solicitud, espacio para la firma y la matriz de cumplimiento técnico.
+Es un documento DEL PROVEEDOR con la misma estructura de la solicitud de
+cotización del SIGA (cantidad, unidad, ítem, descripción, valor total, TOTAL y
+condiciones de compra), para que el evaluador lo lea como está acostumbrado.
+No lleva el encabezado del sistema ni datos que emite la entidad: si el
+proveedor tiene la solicitud SIGA original, la app la completa aparte
+(backend/formato_entidad.py). Al final va la matriz de cumplimiento técnico.
 
 Regla de oro: generar_pdf() se niega a generar el documento si queda algo
 pendiente: datos en rojo sin confirmar, stock sin confirmar, precios faltantes
@@ -47,6 +51,15 @@ class DatosProveedor:
 
 
 @dataclass
+class CondicionesOferta:
+    """Condiciones comerciales que escribe el proveedor (sin valores por defecto)."""
+    forma_pago: str = ""
+    garantia: str = ""
+    plazo_entrega: str = ""
+    validez: str = ""
+
+
+@dataclass
 class LineaCotizacion:
     item: Item
     evaluacion: EvaluacionProducto | None  # None: el ítem no se cotiza
@@ -62,18 +75,30 @@ class Cotizacion:
     confirmados: set[tuple[int, str]] = field(default_factory=set)  # (n.° de ítem, atributo o STOCK)
     responsable: bool = False
     fecha: date = field(default_factory=date.today)
+    condiciones: CondicionesOferta = field(default_factory=CondicionesOferta)
 
     @property
     def cotizadas(self) -> list[LineaCotizacion]:
         return [linea for linea in self.lineas if linea.evaluacion is not None]
 
+    def valor_total(self, linea: LineaCotizacion) -> float:
+        """Valor total del ítem, con IGV si corresponde (lo que va en la columna VALOR TOTAL)."""
+        factor = 1 + IGV if self.aplicar_igv else 1
+        return round(round(linea.precio_unitario or 0, 2) * linea.item.cantidad * factor, 2)
+
     @property
     def subtotal(self) -> float:
-        return sum(round(l.precio_unitario or 0, 2) * l.item.cantidad for l in self.cotizadas)
+        """Valor de venta, sin IGV."""
+        return round(sum(round(l.precio_unitario or 0, 2) * l.item.cantidad for l in self.cotizadas), 2)
+
+    @property
+    def total(self) -> float:
+        """Suma de los valores totales: así la tabla y el TOTAL siempre cuadran."""
+        return round(sum(self.valor_total(l) for l in self.cotizadas), 2)
 
     @property
     def igv(self) -> float:
-        return self.subtotal * IGV if self.aplicar_igv else 0.0
+        return round(self.total - self.subtotal, 2) if self.aplicar_igv else 0.0
 
 
 def por_confirmar(linea: LineaCotizacion) -> list[tuple[str, str]]:
@@ -125,7 +150,7 @@ class _PDF(FPDF):
         self.set_y(-12)
         self.set_font("Helvetica", "I", 7)
         self.set_text_color(110, 110, 110)
-        self.cell(0, 5, _t(f"Preparado con Cotizador Digital y revisado por el proveedor. "
+        self.cell(0, 5, _t(f"Cotización del proveedor, preparada con Cotizador Digital y revisada por él. "
                            f"La herramienta no firma ni envía documentos.  Página {self.page_no()}"),
                   align="C")
         self.set_text_color(0, 0, 0)
@@ -135,93 +160,100 @@ def _campo(valor: str, ancho: int = 30) -> str:
     return valor.strip() if valor and valor.strip() else "_" * ancho
 
 
+def _fecha(f: date) -> str:
+    return f"{f.day:02d}/{f.month:02d}/{f.year}"
+
+
 def generar_pdf(cotizacion: Cotizacion) -> bytes:
     faltan = pendientes(cotizacion)
     if faltan:
         raise CotizacionIncompleta(faltan)
 
-    s, p = cotizacion.solicitud, cotizacion.proveedor
+    s, p, c = cotizacion.solicitud, cotizacion.proveedor, cotizacion.condiciones
     pdf = _PDF(format="A4")
     pdf.set_margins(18, 15, 18)
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
 
-    # Encabezado del proveedor
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 6, _t(_campo(p.razon_social, 40)), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Helvetica", "", 9)
-    pdf.cell(0, 5, _t(f"RUC: {_campo(p.ruc, 11)}   ·   Dirección: {_campo(p.direccion, 30)}"),
-             new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 5, _t(f"Teléfono: {_campo(p.telefono, 12)}   ·   Correo: {_campo(p.correo, 25)}"),
-             new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(4)
-    f = cotizacion.fecha
-    pdf.cell(0, 5, _t(f"{f.day} de {MESES[f.month - 1]} de {f.year}"), align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(2)
-
+    # Encabezado: datos del proveedor (el documento es suyo) y fecha
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(120, 5.5, _t(_campo(p.razon_social, 40)))
+    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.cell(0, 5.5, _t(f"Fecha : {_fecha(cotizacion.fecha)}"), align="R", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 8.5)
+    for linea in (f"R.U.C. : {_campo(p.ruc, 11)}", f"Dirección : {_campo(p.direccion, 30)}",
+                  f"Teléfono : {_campo(p.telefono, 12)}      Email : {_campo(p.correo, 25)}"):
+        pdf.cell(0, 4.5, _t(linea), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
     pdf.set_font("Helvetica", "B", 13)
     pdf.cell(0, 7, _t("COTIZACIÓN"), align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(2)
-
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 5, _t(f"Señores: {s.entidad}"), new_x="LMARGIN", new_y="NEXT")
-    if s.numero_solicitud:
-        pdf.multi_cell(0, 5, _t(f"Referencia: Solicitud de cotización N° {s.numero_solicitud}"),
-                       new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(2)
-    pdf.multi_cell(0, 5, _t(
-        f"De nuestra consideración: por medio de la presente, {_campo(p.razon_social, 30)}, "
-        f"con RUC {_campo(p.ruc, 11)}, presenta su cotización para {s.objeto}, de acuerdo con las "
-        "especificaciones técnicas solicitadas, según el siguiente detalle:"),
-        new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(3)
-
-    # Cuadro de precios
     pdf.set_font("Helvetica", "", 8.5)
-    with pdf.table(col_widths=(10, 48, 50, 18, 18, 21, 23), line_height=5,
-                   text_align=("CENTER", "LEFT", "LEFT", "CENTER", "RIGHT", "RIGHT", "RIGHT")) as tabla:
-        tabla.row([_t(x) for x in ("Ítem", "Descripción solicitada", "Producto ofrecido", "Unidad",
-                                   "Cant.", "P. unit. (S/)", "Subtotal (S/)")])
+    pdf.cell(0, 4.5, _t(f"En respuesta a la Solicitud de Cotización N° {_campo(s.numero_solicitud or '', 10)}"),
+             align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+
+    # Recuadro de la entidad, como en la solicitud del SIGA
+    arriba = pdf.get_y()
+    for etiqueta, valor in (("Señores", s.entidad), ("Concepto", s.objeto), ("Moneda", "S/. (soles)")):
+        pdf.set_x(21)
+        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.cell(22, 5, _t(etiqueta))
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.multi_cell(147, 5, _t(f":  {valor}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.rect(18, arriba - 1, 174, pdf.get_y() - arriba + 2)
+    pdf.ln(4)
+
+    # Tabla: CANTIDAD | UNIDAD MEDIDA | ÍTEM | DESCRIPCIÓN | VALOR TOTAL, y casilla TOTAL
+    pdf.set_font("Helvetica", "", 8.5)
+    with pdf.table(col_widths=(18, 22, 12, 96, 26), line_height=4.6,
+                   text_align=("CENTER", "CENTER", "CENTER", "LEFT", "RIGHT")) as tabla:
+        tabla.row([_t(x) for x in ("CANTIDAD", "UNIDAD MEDIDA", "ÍTEM", "DESCRIPCIÓN", "VALOR TOTAL")])
         for linea in cotizacion.lineas:
             item = linea.item
+            fila = [_cantidad(item.cantidad), item.unidad.upper(), str(item.numero)]
             if linea.evaluacion is None:
-                tabla.row([_t(x) for x in (str(item.numero), item.descripcion, "No se cotiza",
-                                           item.unidad, _cantidad(item.cantidad), "-", "-")])
+                tabla.row([_t(x) for x in fila + [f"{item.descripcion}\nNo se cotiza", "-"]])
                 continue
             e = linea.evaluacion
-            unitario = round(linea.precio_unitario, 2)
-            ofrecido = e.producto + (f" ({e.marca_modelo})" if e.marca_modelo else "")
-            tabla.row([_t(x) for x in (str(item.numero), item.descripcion, ofrecido, item.unidad,
-                                       _cantidad(item.cantidad), _soles(unitario),
-                                       _soles(unitario * item.cantidad))])
+            ofrecido = e.producto + (f" - {e.marca_modelo}" if e.marca_modelo else "")
+            tabla.row([_t(x) for x in fila + [f"{item.descripcion}\nOfrecemos: {ofrecido}",
+                                              _soles(cotizacion.valor_total(linea))]])
+        total = tabla.row()
+        total.cell(_t("TOTAL"), colspan=4, align="RIGHT")
+        total.cell(_soles(cotizacion.total), align="RIGHT")
+    pdf.set_font("Helvetica", "I", 7.5)
+    nota_igv = (f"Valor de venta S/ {_soles(cotizacion.subtotal)} + IGV ({IGV:.0%}) S/ {_soles(cotizacion.igv)}."
+                if cotizacion.aplicar_igv else "Montos sin IGV.")
+    pdf.cell(0, 4.5, _t(nota_igv), align="R", new_x="LMARGIN", new_y="NEXT")
 
+    # Condiciones de compra, en el mismo orden que la solicitud del SIGA
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(0, 5, _t("Condiciones de Compra"), new_x="LMARGIN", new_y="NEXT")
+    marcas = "; ".join(f"Ítem {l.item.numero}: {l.evaluacion.marca_modelo}" for l in cotizacion.cotizadas
+                       if l.evaluacion.marca_modelo.strip())
+    condiciones = [
+        ("Forma de Pago", c.forma_pago),
+        ("Garantía", c.garantia),
+        ("La cotización incluye el I.G.V.", "Sí" if cotizacion.aplicar_igv else "No (montos sin IGV)"),
+        ("Plazo de Entrega", c.plazo_entrega),
+        ("Tipo de Moneda", "Soles (S/)"),
+        ("Validez de la cotización", c.validez),
+        ("Marca de Procedencia", marcas),
+        ("Tipo de Cambio", ""),
+    ]
+    for etiqueta, valor in condiciones:
+        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.cell(55, 4.8, _t(f"- {etiqueta} :"))
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.multi_cell(0, 4.8, _t(valor.strip() if valor and valor.strip() else "_" * 25),
+                       new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
-    pdf.set_font("Helvetica", "", 9.5)
-    totales = [("Subtotal", cotizacion.subtotal)]
-    if cotizacion.aplicar_igv:
-        totales.append((f"IGV ({IGV:.0%})", cotizacion.igv))
-    totales.append(("TOTAL (S/)", cotizacion.subtotal + cotizacion.igv))
-    for etiqueta, monto in totales:
-        pdf.set_font("Helvetica", "B" if etiqueta.startswith("TOTAL") else "", 9.5)
-        pdf.cell(150, 6, _t(etiqueta), align="R")
-        pdf.cell(24, 6, _soles(monto), align="R", new_x="LMARGIN", new_y="NEXT")
-    if not cotizacion.aplicar_igv:
-        pdf.set_font("Helvetica", "I", 8)
-        pdf.cell(0, 5, _t("Montos sin IGV."), align="R", new_x="LMARGIN", new_y="NEXT")
-
-    # Condiciones
-    pdf.ln(3)
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 6, "Condiciones", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Helvetica", "", 9.5)
-    for etiqueta, valor in (("Plazo de entrega", s.plazo_entrega), ("Lugar de entrega", s.lugar_entrega),
-                            ("Validez de la oferta", None)):
-        pdf.multi_cell(0, 5, _t(f"- {etiqueta}: {valor or _campo('', 25)}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.multi_cell(0, 5, _t("- Se adjunta la matriz de cumplimiento de las especificaciones técnicas."),
-                   new_x="LMARGIN", new_y="NEXT")
+    pdf.multi_cell(0, 4.5, _t("Se adjunta la matriz de cumplimiento de las especificaciones técnicas, con la "
+                              "fuente de cada dato."), new_x="LMARGIN", new_y="NEXT")
 
     # Firma (en blanco: la herramienta nunca firma)
-    pdf.ln(16)
+    pdf.ln(14)
     pdf.cell(0, 5, "_" * 40, align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 9)
     pdf.cell(0, 5, _t("Firma y sello del representante legal"), align="C", new_x="LMARGIN", new_y="NEXT")

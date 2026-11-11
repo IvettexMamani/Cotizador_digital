@@ -127,19 +127,18 @@ def test_subir_mi_catalogo_pide_el_archivo_antes_de_cruzar(app):
 
 
 @pytest.mark.lento
-def test_completa_la_solicitud_siga_del_paso_1(app):
-    selector = app.selectbox[0]
-    selector.select_index(selector.options.index("ejemplo_siga_escaneado.pdf")).run()
-    app.button[0].click().run(timeout=240)  # solicitud escaneada: OCR real
-    assert not app.exception
+def test_cotizacion_en_la_solicitud_siga_agregada_en_el_paso_6(app):
+    procesar_ejemplo(app)  # términos de referencia de ejemplo
     app.number_input(key="margen").set_value(20.0).run()
     app.number_input(key="flete").set_value(50.0).run()
     app.checkbox(key="confirmo_2_EJ-ARC-080_material").check().run()
     assert not any("Campo del formato" in d.value.columns for d in app.dataframe)  # aún bloqueado
 
-    app.checkbox(key="responsable").check().run(timeout=240)  # habilita la descarga (OCR del formato)
+    app.checkbox(key="responsable").check().run()  # habilita la descarga
+    assert not any("Campo del formato" in d.value.columns for d in app.dataframe)  # sin SIGA: cotización de la app
+    app.checkbox(key="siga_ejemplo").check().run(timeout=240)  # solicitud SIGA opcional (OCR)
     assert not app.exception
-    assert any("trae su propio formato de respuesta" in m.value for m in app.markdown)
+    assert any("solicitud SIGA que agregaste" in m.value for m in app.markdown)
     tabla = next(d.value for d in app.dataframe if "Campo del formato" in d.value.columns)
     campos = tabla["Campo del formato"].tolist()
     assert {"Ítem 1 · valor total", "Ítem 2 · valor total", "TOTAL"} <= set(campos)

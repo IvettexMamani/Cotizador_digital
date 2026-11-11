@@ -20,7 +20,7 @@ PRECIOS = {1: 14.69, 2: 6.38}  # sin IGV, ilustrativos
 
 
 def cotizacion(aplicar_igv=True, precios=PRECIOS) -> Cotizacion:
-    datos = json.loads((RAIZ / "data" / "precalculado" / "ejemplo_siga.json").read_text(encoding="utf-8"))
+    datos = json.loads((RAIZ / "data" / "precalculado" / "ejemplo_sintetico.json").read_text(encoding="utf-8"))
     solicitud = SolicitudCotizacion.model_validate(datos["solicitud"])
     lineas = [LineaCotizacion(r.item, r.recomendado, precios.get(r.item.numero))
               for r in cruzar(solicitud, cargar_catalogo(RAIZ / "data" / "catalogo_ejemplo.csv"))]

@@ -38,12 +38,12 @@ Todo se hace a mano, con Word y Excel. **Muchas solicitudes quedan sin responder
 
 | Paso | Qué hace | Cómo |
 |---|---|---|
-| 1. Subir | PDF digital, PDF escaneado o foto | Streamlit |
+| 1. Subir | Los **términos de referencia** (TDR) de la entidad: PDF digital, PDF escaneado o foto | Streamlit |
 | 2. Leer | Extrae el texto, página por página | pdfplumber; PaddleOCR si la página es imagen |
 | 3. Extraer | Entidad, objeto, ítems, requisitos técnicos (atributo, operador, valor, unidad), plazo, lugar, fecha límite y anexos, **con la cita y la página de cada requisito** | LLM con salida estructurada + Pydantic |
 | 4. Cruzar | Cada requisito contra el catálogo del proveedor, **que puede subir su propio catálogo** (CSV o Excel, con plantilla descargable): ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo. **Si el bien no está en el catálogo**, el proveedor sube la foto de su etiqueta: el OCR lee lo impreso y se verifica igual, y lo que no se lee queda en rojo | pandas, PaddleOCR |
 | 5. Precio | Costo + flete + margen, comparado con lo que pagó el Estado: mínimo, mediana, máximo y número de órdenes, precio sugerido y semáforo | plotly |
-| 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se genera el PDF: carta, cuadro de precios y matriz de cumplimiento. **Si la solicitud trae su propio formato de respuesta** (como la solicitud de cotización del SIGA), **la cotización se descarga en ese mismo documento**: la app escribe encima del PDF original el valor total de cada ítem, el TOTAL y las condiciones de compra, y lo que no sabe queda en blanco. La carta y la matriz quedan como descarga adicional | fpdf2, pypdf, PaddleOCR |
+| 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se descarga la **cotización del proveedor con la estructura de la solicitud de cotización del SIGA** (cantidad, unidad, ítem, descripción, valor total, TOTAL y condiciones de compra), con la matriz de cumplimiento. **Opcional:** si la entidad envió su solicitud SIGA, el proveedor la agrega y la cotización se entrega en ese mismo documento, completado encima del original | fpdf2, pypdf, PaddleOCR |
 
 **Insight:** el cuello de botella no es la falta de producto, sino el **trabajo de verificación**: leer, contrastar y documentar. Por eso la herramienta no "decide" por el proveedor. Hace el trabajo pesado y muestra la fuente de cada dato. Lo que no tiene fuente queda en rojo, y la responsabilidad final (revisar y firmar) sigue siendo del proveedor.
 
@@ -87,11 +87,15 @@ La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado
 
 ![Subir el catálogo propio](docs/capturas/06_subir_catalogo.png)
 
-**La cotización en el formato de la solicitud:** con una solicitud con formato del SIGA (EJEMPLO SINTÉTICO, escaneada), "Descargar cotización" entrega esa misma solicitud completada. Antes, la app muestra qué escribirá y de dónde sale cada dato; los valores van en azul. Garantía y tipo de cambio quedan en blanco porque el proveedor no los indicó.
+**La cotización:** documento del proveedor con la estructura de la solicitud de cotización del SIGA, para que el evaluador lo lea como está acostumbrado. No lleva el encabezado del sistema ni datos que emite la entidad.
 
-| Vista previa en la app | Formato completado |
+![Cotización con la estructura del SIGA](docs/capturas/09_cotizacion_pdf.png)
+
+**Opcional, con la solicitud SIGA que envió la entidad:** el proveedor la agrega en el paso 6 y la cotización se entrega en ese mismo documento (aquí, una solicitud SIGA de EJEMPLO SINTÉTICO, escaneada). La app muestra qué escribirá y de dónde sale cada dato; los valores van en azul y lo que no indicó el proveedor queda en blanco.
+
+| Vista previa en la app | Solicitud SIGA completada |
 |---|---|
-| ![Vista previa del formato](docs/capturas/07_formato_entidad.png) | ![Formato SIGA completado](docs/capturas/08_formato_completado.png) |
+| ![Vista previa del formato](docs/capturas/07_formato_entidad.png) | ![Solicitud SIGA completada](docs/capturas/08_formato_completado.png) |
 
 *Capturas con la solicitud de EJEMPLO SINTÉTICO, el catálogo de ejemplo y un margen y un flete ilustrativos. Los precios del Estado son reales.*
 
@@ -187,7 +191,7 @@ En resumen:
 | Solicitud de cotización | `data/solicitudes/ejemplo_sintetico.*`: **EJEMPLO SINTÉTICO** de una entidad ficticia, en PDF digital, PDF escaneado y foto | ✅ |
 | Solicitudes reales | 3 a 5 solicitudes públicas descargadas de portales de entidades, nunca documentos internos | ✍️ pendiente |
 | Catálogo | `data/catalogo_ejemplo.csv`: productos ficticios marcados EJEMPLO. Cada proveedor sube el suyo en la app (ver abajo) | ✍️ pendiente el real |
-| Solicitud con formato del SIGA | `data/solicitudes/ejemplo_siga_escaneado.pdf`: **EJEMPLO SINTÉTICO** con diseño inspirado en la solicitud de cotización que imprime el SIGA (entidad, proveedor, RUC y códigos ficticios), escaneada como llegan las reales | ✅ |
+| Solicitud con formato del SIGA | `data/formatos/ejemplo_siga_escaneado.pdf`: **EJEMPLO SINTÉTICO** con diseño inspirado en la solicitud de cotización que imprime el SIGA (entidad, proveedor, RUC y códigos ficticios), escaneada como llegan las reales | ✅ |
 | Foto de producto | `data/fotos_productos/ejemplo_etiqueta_archivador.png`: etiqueta **EJEMPLO SINTÉTICO** de un archivador ficticio (marca inventada). A propósito no indica el material | ✅ |
 | Precios del Estado | `data/precios_estado.csv`: 95 precios unitarios de 18 órdenes de compra de Perú Compras, Acuerdo Marco EXT-CE-2021-7 *Útiles de escritorio, papeles y cartones*, publicadas del 11/05/2026 al 28/10/2026. Cada fila lleva la URL de su orden y la fecha de consulta (09/11/2026) | ✅ |
 
