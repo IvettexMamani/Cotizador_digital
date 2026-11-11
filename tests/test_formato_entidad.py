@@ -100,3 +100,12 @@ def test_llena_la_solicitud_siga_escaneada_con_ocr():
     escrito = {e.campo: e.texto for e in plan.escrituras}
     assert escrito["TOTAL"] == "4,596.10" and escrito["Validez de la cotización"] == "30 días"
     assert "4,596.10" in texto_pdf(llenar(pdf_bytes, plan))  # la capa escrita es texto real
+
+
+def test_tipo_de_cambio_se_escribe_si_el_proveedor_lo_indica():
+    pdf_bytes, paginas = leer_formato("siga.pdf", generar_siga_digital())
+    plan = planificar(paginas, anchos_paginas(pdf_bytes), cotizacion(),
+                      CondicionesOferta(tipo_cambio="No aplica (cotización en soles)"))
+    escrito = {e.campo: e.texto for e in plan.escrituras}
+    assert escrito["Tipo de cambio"] == "No aplica (cotización en soles)"
+    assert "Tipo de cambio" not in plan.en_blanco

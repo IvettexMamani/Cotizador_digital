@@ -482,6 +482,8 @@ def pedir_condiciones() -> CondicionesOferta:
         garantia=c2.text_input("Garantía", key="cond_garantia"),
         plazo_entrega=c1.text_input("Plazo de entrega", key="cond_plazo", placeholder="Ej.: 10 días calendario"),
         validez=c2.text_input("Validez de la cotización", key="cond_validez", placeholder="Ej.: 30 días"),
+        tipo_cambio=c1.text_input("Tipo de cambio", key="cond_cambio",
+                                  placeholder="Ej.: no aplica (cotización en soles)"),
     )
 
 

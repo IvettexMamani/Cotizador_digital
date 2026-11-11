@@ -57,6 +57,7 @@ class CondicionesOferta:
     garantia: str = ""
     plazo_entrega: str = ""
     validez: str = ""
+    tipo_cambio: str = ""
 
 
 @dataclass
@@ -240,7 +241,7 @@ def generar_pdf(cotizacion: Cotizacion) -> bytes:
         ("Tipo de Moneda", "Soles (S/)"),
         ("Validez de la cotización", c.validez),
         ("Marca de Procedencia", marcas),
-        ("Tipo de Cambio", ""),
+        ("Tipo de Cambio", c.tipo_cambio),
     ]
     for etiqueta, valor in condiciones:
         pdf.set_font("Helvetica", "B", 8.5)

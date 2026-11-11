@@ -204,7 +204,7 @@ def _valores_condiciones(cotizacion: Cotizacion, condiciones: CondicionesOferta)
         "plazo_entrega": (condiciones.plazo_entrega.strip(), propio),
         "validez": (condiciones.validez.strip(), propio),
         "moneda": ("Soles (S/)", "La cotización está en soles"),
-        "tipo_cambio": ("", ""),
+        "tipo_cambio": (condiciones.tipo_cambio.strip(), propio),
     }
     marcas = [f"Ítem {l.item.numero}: {l.evaluacion.marca_modelo}" for l in cotizacion.cotizadas
               if l.evaluacion.marca_modelo.strip()]

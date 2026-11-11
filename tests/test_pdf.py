@@ -10,7 +10,7 @@ import pytest
 from ai.esquemas import SolicitudCotizacion
 from backend.catalogo import CATALOGO_EJEMPLO, cargar_catalogo
 from backend.cruce import cruzar
-from backend.pdf import (STOCK, Cotizacion, CotizacionIncompleta, DatosProveedor, LineaCotizacion,
+from backend.pdf import (STOCK, CondicionesOferta, Cotizacion, CotizacionIncompleta, DatosProveedor, LineaCotizacion,
                          generar_pdf, pendientes, por_confirmar)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -83,3 +83,11 @@ def test_item_sin_producto_se_marca_como_no_cotizado(cotizacion):
     confirmar_todo(cotizacion)
     with pdfplumber.open(io.BytesIO(generar_pdf(cotizacion))) as documento:
         assert "No se cotiza" in documento.pages[0].extract_text()
+
+
+def test_condiciones_de_la_oferta_en_el_pdf(cotizacion):
+    confirmar_todo(cotizacion)
+    cotizacion.condiciones = CondicionesOferta(forma_pago="A la conformidad", tipo_cambio="No aplica")
+    with pdfplumber.open(io.BytesIO(generar_pdf(cotizacion))) as documento:
+        texto = documento.pages[0].extract_text()
+    assert "A la conformidad" in texto and "No aplica" in texto
