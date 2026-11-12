@@ -131,9 +131,25 @@ def test_ejemplo_sintetico_con_catalogo_de_ejemplo():
 
 # ---------------------------------------------------------------- validación del catálogo
 
+def test_papel_a3_con_catalogo_de_ejemplo():
+    item = Item(numero=1, descripcion="Papel bond A3", cantidad=60, unidad="Paquete", requisitos=[
+        req("tamaño", "=", "A3", None), req("gramaje", ">=", "75", "g/m2"),
+        req("hojas por paquete", "=", "500", "hojas")])
+    solicitud = SolicitudCotizacion(entidad="ENTIDAD FICTICIA", numero_solicitud=None, objeto="Papel A3",
+                                    items=[item], plazo_entrega=None, lugar_entrega=None, fecha_limite=None,
+                                    anexos_solicitados=[], dudas=[])
+    (papel,) = cruzar(solicitud, cargar_catalogo(CATALOGO_EJEMPLO))
+    assert papel.recomendado.sku == "EJ-PA3-075" and papel.recomendado.estado == CUMPLE
+    a3_80 = next(e for e in papel.evaluaciones if e.sku == "EJ-PA3-080")
+    assert a3_80.estado == CUMPLE and not a3_80.stock_suficiente  # 40 paquetes en stock y se piden 60
+    for a4 in (e for e in papel.evaluaciones if e.sku.startswith("EJ-PAP")):
+        assert a4.estado == NO_CUMPLE  # el tamaño A4 no es A3
+
+
 def test_catalogo_de_ejemplo_es_valido():
     df = cargar_catalogo(CATALOGO_EJEMPLO)
-    assert set(df["sku"]) == {"EJ-PAP-075", "EJ-PAP-070", "EJ-PAP-080", "EJ-ARC-080", "EJ-ARC-050"}
+    assert set(df["sku"]) == {"EJ-PAP-075", "EJ-PAP-070", "EJ-PAP-080", "EJ-PA3-075", "EJ-PA3-080",
+                              "EJ-ARC-080", "EJ-ARC-050"}
 
 
 def test_catalogo_con_punto_y_coma_y_coma_decimal(tmp_path):

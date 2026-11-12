@@ -23,7 +23,7 @@ def test_la_plantilla_es_un_catalogo_valido_con_instrucciones():
 
 def test_csv_con_coma_igual_que_el_de_ejemplo():
     catalogo = leer_catalogo_subido("mi_catalogo.csv", CATALOGO_EJEMPLO.read_bytes())
-    assert catalogo["sku"].nunique() == 5
+    assert catalogo["sku"].nunique() == 7  # 3 papeles A4, 2 papeles A3 y 2 archivadores
 
 
 def test_csv_de_excel_en_espanol_con_punto_y_coma_y_latin1():
