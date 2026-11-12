@@ -38,6 +38,10 @@ CONVERSIONES = {
 }
 SIMILITUD_MINIMA = 0.8  # para asociar nombres de atributo parecidos
 
+# El gramaje del papel es masa por área (g/m2), pero en los TDR y en los empaques se abrevia
+# «papel bond 80 g» o «80 gr». Solo en el atributo gramaje esas unidades se leen como g/m2.
+UNIDADES_GRAMAJE = {"g", "gr", "grs", "gramos", "g/m2", "gr/m2", "grs/m2", "gsm"}
+
 
 # ---------------------------------------------------------------- normalización
 
@@ -156,10 +160,18 @@ def comparar(requisito: RequisitoTecnico, valor: str, unidad: str | None) -> tup
     if numero_exigido is not None and numero_ofrecido is not None:
         unidad_exigida = requisito.unidad or unidad_en_exigido
         unidad_ofrecida = unidad or unidad_en_ofrecido
+        equivalencia = ""
+        if ("gramaje" in normalizar(requisito.atributo)
+                and normalizar_unidad(unidad_exigida) in UNIDADES_GRAMAJE
+                and normalizar_unidad(unidad_ofrecida) in UNIDADES_GRAMAJE
+                and normalizar_unidad(unidad_exigida) != normalizar_unidad(unidad_ofrecida)):
+            abreviada = unidad_exigida if normalizar_unidad(unidad_exigida) != "g/m2" else unidad_ofrecida
+            equivalencia = f" (en el gramaje del papel, «{abreviada}» equivale a g/m2)"
+            unidad_exigida = unidad_ofrecida = "g/m2"
         convertido = convertir(numero_ofrecido, unidad_ofrecida, unidad_exigida)
         if convertido is None:
             return REVISAR, f"Unidades distintas ({unidad_ofrecida or 'sin unidad'} y {unidad_exigida or 'sin unidad'}): verificar."
-        nota = ""
+        nota = equivalencia
         if normalizar_unidad(unidad_ofrecida) != normalizar_unidad(unidad_exigida):
             nota = f" ({ofrecido} = {convertido:g} {unidad_exigida})"
         if _comparar_numeros(requisito.operador, convertido, numero_exigido):

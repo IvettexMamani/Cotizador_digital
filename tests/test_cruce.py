@@ -131,6 +131,28 @@ def test_ejemplo_sintetico_con_catalogo_de_ejemplo():
 
 # ---------------------------------------------------------------- validación del catálogo
 
+def test_gramaje_80_g_equivale_a_80_g_m2():
+    # Los TDR dicen «PAPEL BOND 80 g» y la ficha técnica, 80 g/m2: es la abreviación habitual del gramaje
+    estado, motivo = comparar(req("gramaje", "=", "80", "g"), "80", "g/m2")
+    assert estado == CUMPLE and "equivale a g/m2" in motivo
+    assert comparar(req("gramaje", "=", "80", "g"), "75", "g/m2")[0] == NO_CUMPLE
+    assert comparar(req("gramaje", ">=", "75", "gr"), "80", "g/m2")[0] == CUMPLE
+    # Fuera del gramaje, «g» y «g/m2» siguen siendo unidades distintas: se revisa
+    assert comparar(req("peso", "=", "80", "g"), "80", "g/m2")[0] == REVISAR
+
+
+def test_papel_a3_80_g_como_lo_extrae_la_ia():
+    """Caso de Ivette: «01 · PAPEL BOND 80 g TAMAÑO A3 · PAQUETE X 500 · 05» (requisitos tal como los extrajo la IA)."""
+    item = Item(numero=1, descripcion="PAPEL BOND 80 g TAMAÑO A3", cantidad=5, unidad="PAQUETE X 500",
+                requisitos=[req("gramaje", "=", "80", "g"), req("tamaño", "=", "A3", None)])
+    solicitud = SolicitudCotizacion(entidad="ENTIDAD FICTICIA", numero_solicitud=None, objeto="Papel A3",
+                                    items=[item], plazo_entrega=None, lugar_entrega=None, fecha_limite=None,
+                                    anexos_solicitados=[], dudas=[])
+    (papel,) = cruzar(solicitud, cargar_catalogo(CATALOGO_EJEMPLO))
+    assert papel.recomendado.sku == "01" and papel.recomendado.estado == CUMPLE
+    assert papel.recomendado.stock_suficiente  # 5 en stock, se piden 5
+
+
 def test_papel_a3_con_catalogo_de_ejemplo():
     item = Item(numero=1, descripcion="Papel bond A3", cantidad=60, unidad="Paquete", requisitos=[
         req("tamaño", "=", "A3", None), req("gramaje", ">=", "75", "g/m2"),

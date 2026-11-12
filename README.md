@@ -189,7 +189,7 @@ Costo de IA al mes por usuario = costo por cotización × cotizaciones al mes.
 | App web (Streamlit) | | [`app/streamlit_app.py`](app/streamlit_app.py) |
 | Validación (Pydantic) | | [`ai/esquemas.py`](ai/esquemas.py) |
 | PDF (fpdf2, pypdf) | | [`backend/pdf.py`](backend/pdf.py) (cotización propia) y [`backend/formato_entidad.py`](backend/formato_entidad.py) (escribe sobre el formato de la entidad) |
-| Pruebas (pytest) | | [`tests/`](tests/): 112 pruebas |
+| Pruebas (pytest) | | [`tests/`](tests/): 114 pruebas |
 | Evaluación | 12 | Opcional, pendiente: medir qué porcentaje de requisitos se extrae bien en solicitudes revisadas a mano. |
 
 ## 9. Qué hizo el agente
@@ -198,7 +198,7 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 112 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
+- **Generó** todo el código, las 114 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
 - **Funciones que agregó después del plan inicial, a pedido de Ivette:** verificación de un bien fuera del catálogo con la foto de su etiqueta, subida del catálogo propio (CSV o Excel, con plantilla), una tabla de requisitos por ítem, la barra lateral con el avance del usuario el llenado del formato de la entidad (solicitud SIGA) sobre el PDF original y la revisión como evaluador antes de descargar la cotización.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida), el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar, que la exportación de datos abiertos de Perú Compras no traía el precio por producto (se leyeron los PDF de las órdenes con OCR, con autorización de Ivette y las reglas de scraping responsable) y un error de redondeo que dejaba el precio sugerido bajo el costo.
 - **Transcribió y resumió** las conversaciones que grabó Ivette, en su laptop, sin enviar el audio a ningún servicio. En los resúmenes no hay nombres, y cada dato lleva el minuto de la grabación para verificarlo. Las grabaciones no están en el repositorio.
