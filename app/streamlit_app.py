@@ -8,6 +8,8 @@ Ejecutar desde la raíz del repo:
 """
 
 import sys
+import zlib
+from dataclasses import replace
 from pathlib import Path
 
 import truststore
@@ -67,6 +69,7 @@ from backend.pdf import (CondicionesOferta, Cotizacion, DatosProveedor, LineaCot
 from backend.precio import (IGV, con_igv, piso_unitario, precio_con_margen, precio_sugerido,  # noqa: E402
                             referencia_estado, repartir_flete, semaforo)
 from backend.precios import PRECIOS_ESTADO, buscar_precios, cargar_precios_estado, terminos_por_defecto  # noqa: E402
+from backend.revision import ATENCION, OK, PROBLEMA, revisar  # noqa: E402
 
 _registrar_modulos()
 
@@ -296,8 +299,10 @@ def mostrar_cruce(solicitud) -> list:
     return seleccion
 
 
-def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
-    """Paso 5: tarjeta de precio por ítem. Devuelve (precio unitario sin IGV por ítem, ¿agregar IGV?)."""
+def mostrar_precio(seleccion) -> tuple[dict[int, float], bool, dict]:
+    """Paso 5: tarjeta de precio por ítem.
+
+    Devuelve (precio unitario sin IGV por ítem, ¿agregar IGV?, semáforo de precio por ítem)."""
     st.header("5. Precio")
     st.caption("El margen y el flete son datos de tu negocio: los defines tú. "
                "Los precios del Estado se comparan con tu precio final, el que pagaría la entidad.")
@@ -318,12 +323,12 @@ def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
     cotizables = [(r, e) for r, e in seleccion if e is not None]
     if not cotizables:
         st.warning("No hay ítems con un producto apto para cotizar.")
-        return {}, aplicar_igv
+        return {}, aplicar_igv, {}
     if margen is None or flete is None:
         st.info("Ingresa tu margen y el flete para calcular los precios.")
-        return {}, aplicar_igv
+        return {}, aplicar_igv, {}
 
-    precios = {}
+    precios, semaforos = {}, {}
     fletes = repartir_flete(flete, [e.costo_unitario * r.item.cantidad for r, e in cotizables])
     for (resultado, elegido), flete_item in zip(cotizables, fletes):
         item = resultado.item
@@ -350,7 +355,7 @@ def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
         final = st.number_input(f"Precio unitario final{base} (S/)", min_value=0.0, value=round(sugerido, 2),
                                 step=0.10, format="%.2f",
                                 key=f"precio_{item.numero}_{elegido.sku}_{margen}_{flete}_{aplicar_igv}_{terminos}")
-        luz = semaforo(final, piso, referencia)
+        luz = semaforos[item.numero] = semaforo(final, piso, referencia)
         mostrar, etiqueta = SEMAFORO[luz.color]
         mostrar(f"**{etiqueta}.** {luz.mensaje}")
 
@@ -367,10 +372,39 @@ def mostrar_precio(seleccion) -> tuple[dict[int, float], bool]:
                                       "fuente"]],
                              hide_index=True, width="stretch")
         precios[item.numero] = final / (1 + IGV) if aplicar_igv else final
-    return precios, aplicar_igv
+    return precios, aplicar_igv, semaforos
 
 
-def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion) -> bool:
+def pedir_documentos(solicitud) -> set[int]:
+    """Lista de chequeo de los documentos que pide la entidad. Devuelve las posiciones marcadas."""
+    if not solicitud.anexos_solicitados:
+        return set()
+    st.markdown("**Documentos que pide la entidad**")
+    st.caption("La app no los genera: márcalos cuando los tengas listos para adjuntar.")
+    # La clave lleva el texto del documento: si se cambian los términos de referencia, la marca no se arrastra
+    return {i for i, anexo in enumerate(solicitud.anexos_solicitados)
+            if st.checkbox(anexo, key=f"anexo_{i}_{zlib.crc32(anexo.encode()):x}")}
+
+
+ICONO_REVISION = {PROBLEMA: "❌", ATENCION: "⚠️", OK: "✅"}
+
+
+def mostrar_revision(observaciones) -> None:
+    problemas = sum(o.estado == PROBLEMA for o in observaciones)
+    atencion = sum(o.estado == ATENCION for o in observaciones)
+    por_revisar = f"{atencion} punto{'s' if atencion != 1 else ''} por revisar"
+    if problemas:
+        st.error(f"**El evaluador encontraría {problemas} problema{'s' if problemas != 1 else ''}** "
+                 f"y {por_revisar}.")
+    elif atencion:
+        st.warning(f"**Sin problemas graves**, pero hay {por_revisar}.")
+    else:
+        st.success("**El evaluador no encontraría observaciones.**")
+    for o in observaciones:
+        st.markdown(f"{ICONO_REVISION[o.estado]} **{o.tema}:** {o.mensaje}")
+
+
+def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, semaforos, extraccion) -> bool:
     """Paso 6: resumen, confirmación de lo que está en rojo y PDF. Devuelve True si el PDF está listo."""
     st.header("6. Confirmación y PDF")
     with st.expander("Datos de tu empresa para el PDF (opcional: no se guardan)"):
@@ -407,10 +441,17 @@ def mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, extraccion)
                            key=f"confirmo_{item.numero}_{e.sku}_{clave}"):
                 confirmados.add((item.numero, clave))
 
+    borrador = Cotizacion(solicitud, lineas, proveedor, aplicar_igv, confirmados, False, condiciones=condiciones)
+    st.subheader("🔎 Revisión como evaluador")
+    st.caption("Lo que miraría el área de logística al recibir tu cotización: compara lo que piden los términos "
+               "de referencia con lo que ofreces. No bloquea la descarga; te avisa para que no pierdas la orden "
+               "por un detalle.")
+    adjuntos = pedir_documentos(solicitud)
+    mostrar_revision(revisar(borrador, adjuntos, semaforos))
+
     responsable = st.checkbox("**Revisé y me hago responsable** de la información de esta cotización.",
                               key="responsable")
-    cotizacion = Cotizacion(solicitud, lineas, proveedor, aplicar_igv, confirmados, responsable,
-                            condiciones=condiciones)
+    cotizacion = replace(borrador, responsable=responsable)
 
     if extraccion.modo == "ia" and extraccion.uso and extraccion.uso.costo_usd is not None:
         st.caption(f"Costo de IA de esta cotización: US$ {extraccion.uso.costo_usd:.4f} "
@@ -683,8 +724,8 @@ if resultado is not None:
 
     seleccion = mostrar_cruce(solicitud)
     if seleccion:
-        precios, aplicar_igv = mostrar_precio(seleccion)
-        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, resultado)
+        precios, aplicar_igv, semaforos = mostrar_precio(seleccion)
+        pdf_listo = mostrar_confirmacion(solicitud, seleccion, precios, aplicar_igv, semaforos, resultado)
 
 mostrar_avance(avance, [
     contenido is not None,

@@ -126,6 +126,25 @@ def test_subir_mi_catalogo_pide_el_archivo_antes_de_cruzar(app):
     assert any(h.value.startswith("5.") for h in app.header)
 
 
+def test_revision_como_evaluador_en_el_paso_6(app):
+    procesar_ejemplo(app)
+    app.number_input(key="margen").set_value(20.0).run()
+    app.number_input(key="flete").set_value(50.0).run()
+    assert any("Revisión como evaluador" in s.value for s in app.subheader)
+    revision = " ".join(m.value for m in app.markdown)
+    assert "Te faltan 5 de 5" in revision  # documentos que piden los términos de referencia
+    assert "Confirmaste sin ficha técnica: material" in revision
+
+    app.text_input(key="cond_plazo").set_value("15 días calendario").run()
+    assert "un plazo mayor no cumple" in " ".join(m.value for m in app.markdown)
+
+    for casilla in [c for c in app.checkbox if c.key.startswith("anexo_")]:
+        casilla.check()
+    app.run()
+    assert "Marcaste los 5 documentos" in " ".join(m.value for m in app.markdown)
+    assert not app.exception
+
+
 @pytest.mark.lento
 def test_cotizacion_en_la_solicitud_siga_agregada_en_el_paso_6(app):
     procesar_ejemplo(app)  # términos de referencia de ejemplo

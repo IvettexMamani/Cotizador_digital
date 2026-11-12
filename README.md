@@ -61,7 +61,7 @@ Dos conversaciones grabadas con proveedores del Estado (resúmenes sin datos per
 | 3. Extraer | Entidad, objeto, ítems, requisitos técnicos (atributo, operador, valor, unidad), plazo, lugar, fecha límite y anexos, **con la cita y la página de cada requisito** | LLM con salida estructurada + Pydantic |
 | 4. Cruzar | Cada requisito contra el catálogo del proveedor, **que puede subir su propio catálogo** (CSV o Excel, con plantilla descargable): ✅ cumple, ⚠️ revisar o ❌ no cumple, con la fuente de cada dato. Ordena los productos por estado, stock y costo. **Si el bien no está en el catálogo**, el proveedor sube la foto de su etiqueta: el OCR lee lo impreso y se verifica igual, y lo que no se lee queda en rojo | pandas, PaddleOCR |
 | 5. Precio | Costo + flete + margen, comparado con lo que pagó el Estado: mínimo, mediana, máximo y número de órdenes, precio sugerido y semáforo | plotly |
-| 6. Confirmar | Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se descarga la **cotización del proveedor con la estructura de la solicitud de cotización del SIGA** (cantidad, unidad, ítem, descripción, valor total, TOTAL y condiciones de compra), con la matriz de cumplimiento. **Opcional:** si la entidad envió su solicitud SIGA, el proveedor la agrega y la cotización se entrega en ese mismo documento, completado encima del original | fpdf2, pypdf, PaddleOCR |
+| 6. Confirmar | La **revisión como evaluador** compara lo que piden los términos de referencia con la oferta, como lo haría el área de logística: fecha límite, documentos pedidos, plazo de entrega, garantía, datos confirmados sin ficha técnica, precio frente al Estado y RUC. Cada dato en rojo se confirma uno por uno, más la casilla **"Revisé y me hago responsable"**. Recién entonces se descarga la **cotización del proveedor con la estructura de la solicitud de cotización del SIGA** (cantidad, unidad, ítem, descripción, valor total, TOTAL y condiciones de compra), con la matriz de cumplimiento. **Opcional:** si la entidad envió su solicitud SIGA, el proveedor la agrega y la cotización se entrega en ese mismo documento, completado encima del original | fpdf2, pypdf, PaddleOCR |
 
 **Insight (de las conversaciones):** el proveedor con experiencia no tarda en llenar la cotización, entre 10 y 30 minutos. **Pierde la orden por el precio o por un detalle técnico que no coincide.** Los dos proveedores entrevistados perdieron una orden por una especificación, y los dos dicen que gana el menor precio. Por eso la app pone el peso en la matriz de cumplimiento, requisito por requisito y con la fuente de cada dato (paso 4), y en el precio comparado con lo que pagó el Estado (paso 5). La herramienta no "decide" por el proveedor: lo que no tiene fuente queda en rojo, y la responsabilidad final (revisar y firmar) sigue siendo suya.
 
@@ -166,7 +166,7 @@ flowchart LR
 
 | Componente | Costo | Cómo se obtiene |
 |---|---|---|
-| IA (tokens) | ✍️ *pendiente: US$ por cotización* | Cada llamada al LLM registra sus tokens en `logs/uso_llm.jsonl`; `python -m ai.costos` calcula el costo promedio por cotización. Se mide con las solicitudes reales y la clave de API. |
+| IA (tokens) | **US$ 0,0015 por cotización** (menos de un céntimo de sol) | Medido el 11/11/2026 con Claude Haiku 5.5 y la solicitud de ejemplo (1 página, 2 ítems): 3 756 tokens de entrada y 2 198 de salida. Cada llamada registra sus tokens en `logs/uso_llm.jsonl` y `python -m ai.costos` calcula el promedio. Unos términos de referencia más largos usan más tokens: ✍️ volver a medir con TDR reales. |
 | OCR | S/ 0 | PaddleOCR corre dentro de la app, sin API de pago. |
 | Servidor | S/ 0 en la demo | Streamlit Community Cloud es gratis. Hugging Face Spaces exige hoy la suscripción PRO (US$ 9 al mes) para apps como esta. |
 | APIs de datos | S/ 0 | Los datos de Perú Compras son abiertos. |
@@ -185,7 +185,7 @@ Costo de IA al mes por usuario = costo por cotización × cotizaciones al mes.
 | App web (Streamlit) | | [`app/streamlit_app.py`](app/streamlit_app.py) |
 | Validación (Pydantic) | | [`ai/esquemas.py`](ai/esquemas.py) |
 | PDF (fpdf2, pypdf) | | [`backend/pdf.py`](backend/pdf.py) (cotización propia) y [`backend/formato_entidad.py`](backend/formato_entidad.py) (escribe sobre el formato de la entidad) |
-| Pruebas (pytest) | | [`tests/`](tests/): 100 pruebas |
+| Pruebas (pytest) | | [`tests/`](tests/): 111 pruebas |
 | Evaluación | 12 | Opcional, pendiente: medir qué porcentaje de requisitos se extrae bien en solicitudes revisadas a mano. |
 
 ## 9. Qué hizo el agente
@@ -194,12 +194,12 @@ El código lo escribió **Claude Code** (Claude Opus 5.5) como co-founder técni
 
 En resumen:
 
-- **Generó** todo el código, las 100 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
-- **Funciones que agregó después del plan inicial, a pedido de Ivette:** verificación de un bien fuera del catálogo con la foto de su etiqueta, subida del catálogo propio (CSV o Excel, con plantilla), una tabla de requisitos por ítem, la barra lateral con el avance del usuario y el llenado del formato de la entidad (solicitud SIGA) sobre el PDF original.
+- **Generó** todo el código, las 111 pruebas, la solicitud, el catálogo y la foto de ejemplo (sintéticos y marcados como tales), los precios reales del Estado (leídos de las órdenes de compra de Perú Compras), los archivos de despliegue y esta documentación.
+- **Funciones que agregó después del plan inicial, a pedido de Ivette:** verificación de un bien fuera del catálogo con la foto de su etiqueta, subida del catálogo propio (CSV o Excel, con plantilla), una tabla de requisitos por ítem, la barra lateral con el avance del usuario el llenado del formato de la entidad (solicitud SIGA) sobre el PDF original y la revisión como evaluador antes de descargar la cotización.
 - **Resolvió en el camino:** el antivirus que interceptaba HTTPS (con `truststore`), un error de paddlepaddle 3.3 con oneDNN (se fijó la versión 3.2.2, cuatro veces más rápida), el cambio de Hugging Face Spaces a Streamlit Community Cloud cuando HF empezó a cobrar, que la exportación de datos abiertos de Perú Compras no traía el precio por producto (se leyeron los PDF de las órdenes con OCR, con autorización de Ivette y las reglas de scraping responsable) y un error de redondeo que dejaba el precio sugerido bajo el costo.
 - **Transcribió y resumió** las conversaciones que grabó Ivette, en su laptop, sin enviar el audio a ningún servicio. En los resúmenes no hay nombres, y cada dato lleva el minuto de la grabación para verificarlo. Las grabaciones no están en el repositorio.
 - **No inventó** especificaciones de productos reales, márgenes, fletes ni cifras del mercado: esos datos quedan como campos que llena el proveedor o como pendientes marcados con ✍️.
-- **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue, qué entra o no en la demo y las funciones que se agregaron después (foto de producto, catálogo propio, tabla por ítem, barra de avance y formato de la entidad). Para el formato, aportó un documento real que se usó solo como referencia de diseño: no está en el repositorio.
+- **Ivette decidió** el problema, el flujo, la regla de oro, los planes, la plataforma de despliegue, qué entra o no en la demo y las funciones que se agregaron después (foto de producto, catálogo propio, tabla por ítem, barra de avance, formato de la entidad y revisión como evaluador). Para el formato, aportó un documento real que se usó solo como referencia de diseño: no está en el repositorio.
 
 ---
 
