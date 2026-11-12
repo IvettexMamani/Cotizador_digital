@@ -18,10 +18,10 @@ EJ-PA3-075,Papel bond A3 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,29.
 EJ-PA3-075,Papel bond A3 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,29.00,80,hojas por paquete,500,hojas,Ficha de ejemplo sintética,si
 EJ-PA3-075,Papel bond A3 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,29.00,80,color,blanco,,Ficha de ejemplo sintética,si
 EJ-PA3-075,Papel bond A3 75 g (EJEMPLO),Producto ficticio,papel bond,Paquete,29.00,80,presentación,paquete sellado de fábrica,,Ficha de ejemplo sintética,si
-EJ-PA3-080,Papel bond A3 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,33.50,40,tamaño,A3,,Ficha de ejemplo sintética,si
-EJ-PA3-080,Papel bond A3 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,33.50,40,gramaje,80,g/m2,Ficha de ejemplo sintética,si
-EJ-PA3-080,Papel bond A3 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,33.50,40,hojas por paquete,500,hojas,Ficha de ejemplo sintética,si
-EJ-PA3-080,Papel bond A3 80 g (EJEMPLO),Producto ficticio,papel bond,Paquete,33.50,40,color,blanco,,Ficha de ejemplo sintética,si
+01,PAPEL BOND 80 g TAMAÑO A3 (EJEMPLO),Producto ficticio,papel bond,Paquete x 500,33.50,5,tamaño,A3,,Ficha de ejemplo sintética,si
+01,PAPEL BOND 80 g TAMAÑO A3 (EJEMPLO),Producto ficticio,papel bond,Paquete x 500,33.50,5,gramaje,80,g/m2,Ficha de ejemplo sintética,si
+01,PAPEL BOND 80 g TAMAÑO A3 (EJEMPLO),Producto ficticio,papel bond,Paquete x 500,33.50,5,hojas por paquete,500,hojas,Ficha de ejemplo sintética,si
+01,PAPEL BOND 80 g TAMAÑO A3 (EJEMPLO),Producto ficticio,papel bond,Paquete x 500,33.50,5,color,blanco,,Ficha de ejemplo sintética,si
 EJ-ARC-080,Archivador de palanca oficio lomo 8 cm (EJEMPLO),Producto ficticio,archivador,Unidad,6.20,200,tamaño,oficio,,Ficha de ejemplo sintética,si
 EJ-ARC-080,Archivador de palanca oficio lomo 8 cm (EJEMPLO),Producto ficticio,archivador,Unidad,6.20,200,ancho de lomo,80,mm,Ficha de ejemplo sintética,si
 EJ-ARC-080,Archivador de palanca oficio lomo 8 cm (EJEMPLO),Producto ficticio,archivador,Unidad,6.20,200,material,cartón prensado forrado,,,si
