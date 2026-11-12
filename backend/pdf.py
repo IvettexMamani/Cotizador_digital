@@ -16,7 +16,8 @@ firma ni envía: el espacio de la firma queda en blanco.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from fpdf import FPDF
 
@@ -24,6 +25,7 @@ from ai.esquemas import Item, SolicitudCotizacion
 from backend.cruce import CUMPLE, EvaluacionProducto
 from backend.precio import IGV
 
+ZONA_PERU = ZoneInfo("America/Lima")
 STOCK = "__stock__"  # clave para confirmar el stock insuficiente de un ítem
 
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
@@ -32,6 +34,11 @@ MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto
 # Las fuentes estándar del PDF solo admiten caracteres latinos (latin-1)
 REEMPLAZOS = {"≥": ">=", "≤": "<=", "—": "-", "–": "-", "“": '"', "”": '"', "‘": "'", "’": "'",
               "…": "...", "•": "-", "✓": "si", "✗": "no"}
+
+
+def hoy_peru() -> date:
+    """Fecha de hoy en Perú (el servidor de la app publicada usa la hora UTC)."""
+    return datetime.now(ZONA_PERU).date()
 
 
 class CotizacionIncompleta(Exception):
@@ -75,7 +82,7 @@ class Cotizacion:
     aplicar_igv: bool = True
     confirmados: set[tuple[int, str]] = field(default_factory=set)  # (n.° de ítem, atributo o STOCK)
     responsable: bool = False
-    fecha: date = field(default_factory=date.today)
+    fecha: date = field(default_factory=hoy_peru)
     condiciones: CondicionesOferta = field(default_factory=CondicionesOferta)
 
     @property

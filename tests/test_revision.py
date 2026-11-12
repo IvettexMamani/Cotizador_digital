@@ -64,6 +64,7 @@ def test_fecha_limite_vigente_o_vencida():
 def test_documentos_que_faltan():
     faltan = por_tema(revisar(cotizacion(), adjuntos=set(), hoy=ANTES_DEL_LIMITE))["Documentos"]
     assert faltan.estado == PROBLEMA and "Te faltan 5 de 5" in faltan.mensaje
+    assert ".;" not in faltan.mensaje and ".." not in faltan.mensaje
     completos = por_tema(revisar(cotizacion(), adjuntos={0, 1, 2, 3, 4}, hoy=ANTES_DEL_LIMITE))["Documentos"]
     assert completos.estado == OK
 

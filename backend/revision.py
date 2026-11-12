@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from backend.cruce import CUMPLE
-from backend.pdf import MESES, Cotizacion
+from backend.pdf import MESES, Cotizacion, hoy_peru
 from backend.precio import Semaforo
 
 OK, ATENCION, PROBLEMA = "ok", "atencion", "problema"
@@ -110,7 +110,7 @@ def _documentos(cotizacion: Cotizacion, adjuntos: set[int]) -> Observacion:
     if not faltan:
         return Observacion("Documentos", OK, f"Marcaste los {len(anexos)} documentos que pide la entidad.")
     return Observacion("Documentos", PROBLEMA,
-                       f"Te faltan {len(faltan)} de {len(anexos)}: {'; '.join(faltan)}. "
+                       f"Te faltan {len(faltan)} de {len(anexos)}: {'; '.join(a.rstrip('. ') for a in faltan)}. "
                        "Una cotización sin un documento pedido puede quedar fuera.")
 
 
@@ -217,7 +217,7 @@ def revisar(cotizacion: Cotizacion, adjuntos: set[int] | None = None,
     """
     garantia = _garantia_exigida(cotizacion)
     observaciones = [
-        _fecha_limite(cotizacion, hoy or date.today()),
+        _fecha_limite(cotizacion, hoy or hoy_peru()),
         _documentos(cotizacion, adjuntos or set()),
         _plazo(cotizacion),
         garantia,
