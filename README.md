@@ -105,6 +105,10 @@ La demo funciona **sin clave de API** (modo demo): usa el resultado precalculado
 
 ![Subir el catálogo propio](docs/capturas/06_subir_catalogo.png)
 
+**Revisión como evaluador:** antes de firmar, la app mira la cotización como lo haría el área de logística. Aquí faltan 2 de los 5 documentos pedidos, el plazo ofrecido (15 días) supera el que pide la entidad (10) y el material del archivador se confirmó sin ficha técnica.
+
+![Revisión como evaluador](docs/capturas/10_revision_evaluador.png)
+
 **La cotización:** documento del proveedor con la estructura de la solicitud de cotización del SIGA, para que el evaluador lo lea como está acostumbrado. No lleva el encabezado del sistema ni datos que emite la entidad.
 
 ![Cotización con la estructura del SIGA](docs/capturas/09_cotizacion_pdf.png)
